@@ -1,0 +1,79 @@
+// tslint:disable:no-any
+// tslint:disable:no-console
+
+import { EventEmitter } from 'events';
+import { Dispatcher } from 'autoinquirer';
+import { Action } from 'autoinquirer/build/interfaces';
+import { backPath } from './utils';
+import { IAnswer, IFeedBack, IPrompt } from './interfaces';
+
+
+export class AutoInquirer extends EventEmitter {
+    private dataDispatcher: Dispatcher;
+    private answer: IAnswer;
+
+    constructor(dataDispatcher: Dispatcher, initialAnswer: IAnswer = { state: { path: '' }}) {
+        super();
+        this.dataDispatcher = dataDispatcher;
+        this.answer = initialAnswer;
+    }
+
+    public async next(): Promise<IPrompt> {
+        const { state } = this.answer;
+        try {
+            const prompt = await this.dataDispatcher.render(state.type, state.path);
+            if (prompt === null) {
+                this.emit('complete');
+            }
+
+            return prompt;
+        } catch (e) {
+            if (e instanceof Error) {
+                const nextPath = state.type !== Action.PUSH? backPath(state.path): state.path;
+                this.answer = { state: { ...state, path: nextPath, errors: e.message } };                    
+                this.emit('error', this.answer.state);
+                
+                return this.next();    
+            }
+        }
+        
+        return null;
+    }
+
+    public async onAnswer(data: IFeedBack) {
+        this.answer = {...this.answer, [data.name]: data.answer};
+        if (data.hasOwnProperty('value')) {
+            this.answer.value = data.value;
+        }
+        //console.log("DATA:", JSON.stringify(data));
+        //console.log("RECEIVED:", JSON.stringify(this.answer));
+        await this.performActions(this.answer);
+    }
+
+    public async performActions(answer: IAnswer) {
+        const { state, value } = answer;
+        state.type = state.type || Action.GET;
+
+        //console.log("ACTION:", answer);
+        if (state && state.type && state.type === Action.PUSH || state.type === Action.DEL || (state.type === Action.SET && value !== undefined)) {
+            const nextPath = state.type !== Action.PUSH? backPath(state.path): state.path;
+            
+            try {
+                await this.dataDispatcher.dispatch(state.type, state.path, undefined, value);
+                this.answer = { state: { path: nextPath } };
+                this.emit(state.type, state);
+            } catch (e) {
+                if (e instanceof Error) {
+                    this.answer = { state: { ...state, errors: e.message } };                    
+                    this.emit('error', this.answer.state);    
+                }
+            }
+        } else {
+            this.emit(state.type, state);
+        }
+    }
+
+    public async run() {
+        this.emit('prompt', await this.next())
+    }
+}

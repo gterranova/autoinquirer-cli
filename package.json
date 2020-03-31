@@ -1,0 +1,36 @@
+{
+  "name": "autoinquirer-cli",
+  "version": "1.0.0",
+  "description": "",
+  "main": "build/index.js",
+  "scripts": {
+    "start": "tsc -p tsconfig.json && node . ..\\autoinquirer-composer\\examples\\schema.json ..\\autoinquirer-composer\\examples\\data.json",
+    "clean": "rimraf coverage build tmp dist",
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -w -p tsconfig.json",
+    "lint": "tslint -t stylish --project \"tsconfig.json\"",
+    "pretest": "npm run lint",
+    "test": "npm run test-only",
+    "test-only": "jest --coverage",
+    "test:watch": "jest --watch",
+    "webpack": "npm run build && webpack --mode production"
+  },
+  "author": "Gianpaolo Terranova <gianpaoloterranova@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^13.9.8",
+    "terser-webpack-plugin": "^2.3.5",
+    "ts-loader": "^6.2.2",
+    "typescript": "^3.8.3",
+    "webpack": "^4.42.1",
+    "webpack-command": "^0.5.0"
+  },
+  "dependencies": {
+    "autoinquirer": "file:../autoinquirer",
+    "chalk": "^3.0.0",
+    "commander": "^5.0.0",
+    "handlebars": "^4.7.3",
+    "inquirer": "^7.0.0",
+    "rxjs": "^6.5.4"
+  }
+}
