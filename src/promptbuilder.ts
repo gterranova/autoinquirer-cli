@@ -18,6 +18,25 @@ const defaultActions: { [key: string]: string[] } = {
     'array': [Action.PUSH, Action.BACK, Action.EXIT]
 };
 
+export function absolute(testPath: string, absolutePath: string): string {
+    if (testPath && testPath[0] === '/') { return testPath; }
+    if (!testPath) { return absolutePath; }
+    const p0 = absolutePath.split('/');
+    const rel = testPath.split('/');
+    while (rel.length) { 
+        const t = rel.shift(); 
+        if (t === '.' || t === undefined) { continue; } 
+        else if (t === '..') { 
+            if (!p0.length) {  
+                continue;
+            }
+            p0.pop(); 
+        } else { p0.push(t) } 
+    }
+
+    return p0.join('/');
+}
+
 export const lookupValues = (schemaPath: string | string[] = '', obj: any, currPath: string = ''): any => {
     const parts = typeof schemaPath === 'string' ? schemaPath.split('/') : schemaPath;
     const key = parts[0];
@@ -106,7 +125,7 @@ export class PromptBuilder extends DataRenderer {
     private async makePrompt(itemPath: string, propertySchema: IProperty, propertyValue: Item): Promise<IPrompt> {        
         const defaultValue = propertyValue!==undefined ? propertyValue : (propertySchema ? propertySchema.default : undefined);
         const isCheckbox = this.isCheckBox(propertySchema);
-        const choices = await this.getOptions(propertySchema);
+        const choices = await this.getOptions(itemPath, propertySchema);
 
         return {
             name: `value`,
@@ -264,22 +283,28 @@ export class PromptBuilder extends DataRenderer {
         return propertySchema.enum !== undefined || propertySchema.$data !== undefined;
     }
 
-    private async getOptions(propertySchema: IProperty): Promise<INameValueState[] | PrimitiveType[] | IProperty[]> {
+    private async getOptions(itemPath: string, propertySchema: IProperty): Promise<INameValueState[] | PrimitiveType[] | IProperty[]> {
         const isCheckBox = this.isCheckBox(propertySchema);
         
         const property = isCheckBox? propertySchema.items : propertySchema;
-        const $values = property ? property.$values: []; 
-        if (getType($values) === 'Object') {
-            return await Promise.all(Object.keys($values).map( async (key: string) => {
-                return { 
-                    name: getType($values[key]) === 'Object'? await this.getName($values[key], null, await this.datasource.getSchema(key)): $values[key], 
-                    value: key,
-                    disabled: !!property.readOnly
-                };
-            }));
+        const dataPath = absolute(property.$data||'', itemPath);
+        let $values = [], $schema: IProperty;
+        if (property.enum) {
+            $values = property.enum || [];
+        } else if (property.$data) {
+            $values = await this.datasource.dispatch('get', dataPath) || [];
+            $schema = await this.datasource.getSchema(dataPath);
+            $schema = $schema.items || $schema;
+        } else {
+            $values = [];
         }
-
-        return isCheckBox? propertySchema.items.enum : propertySchema.enum;         
+        return property.enum || await Promise.all($values.map(async (arrayItem: any) => {
+            return { 
+                name: (getType(arrayItem) === 'Object')? await this.getName(arrayItem, null, $schema): arrayItem,
+                value: `${dataPath}/${arrayItem._id || arrayItem}`,
+                disabled: !!property.readOnly
+            };
+        })) || [];
     }
         
     private evaluate(_: string, itemPath: string, propertySchema: IProperty, propertyValue: Item): Promise<IPrompt> {

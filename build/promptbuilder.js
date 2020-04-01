@@ -24,6 +24,33 @@ const defaultActions = {
     'object': ["back", "del", "exit"],
     'array': ["push", "back", "exit"]
 };
+function absolute(testPath, absolutePath) {
+    if (testPath && testPath[0] === '/') {
+        return testPath;
+    }
+    if (!testPath) {
+        return absolutePath;
+    }
+    const p0 = absolutePath.split('/');
+    const rel = testPath.split('/');
+    while (rel.length) {
+        const t = rel.shift();
+        if (t === '.' || t === undefined) {
+            continue;
+        }
+        else if (t === '..') {
+            if (!p0.length) {
+                continue;
+            }
+            p0.pop();
+        }
+        else {
+            p0.push(t);
+        }
+    }
+    return p0.join('/');
+}
+exports.absolute = absolute;
 exports.lookupValues = (schemaPath = '', obj, currPath = '') => {
     const parts = typeof schemaPath === 'string' ? schemaPath.split('/') : schemaPath;
     const key = parts[0];
@@ -109,7 +136,7 @@ class PromptBuilder extends datasource_1.DataRenderer {
         return __awaiter(this, void 0, void 0, function* () {
             const defaultValue = propertyValue !== undefined ? propertyValue : (propertySchema ? propertySchema.default : undefined);
             const isCheckbox = this.isCheckBox(propertySchema);
-            const choices = yield this.getOptions(propertySchema);
+            const choices = yield this.getOptions(itemPath, propertySchema);
             return {
                 name: `value`,
                 message: `Enter ${propertySchema.type ? propertySchema.type.toString().toLowerCase() : 'value'}:`,
@@ -257,21 +284,30 @@ class PromptBuilder extends datasource_1.DataRenderer {
         ;
         return propertySchema.enum !== undefined || propertySchema.$data !== undefined;
     }
-    getOptions(propertySchema) {
+    getOptions(itemPath, propertySchema) {
         return __awaiter(this, void 0, void 0, function* () {
             const isCheckBox = this.isCheckBox(propertySchema);
             const property = isCheckBox ? propertySchema.items : propertySchema;
-            const $values = property ? property.$values : [];
-            if (utils_1.getType($values) === 'Object') {
-                return yield Promise.all(Object.keys($values).map((key) => __awaiter(this, void 0, void 0, function* () {
-                    return {
-                        name: utils_1.getType($values[key]) === 'Object' ? yield this.getName($values[key], null, yield this.datasource.getSchema(key)) : $values[key],
-                        value: key,
-                        disabled: !!property.readOnly
-                    };
-                })));
+            const dataPath = absolute(property.$data || '', itemPath);
+            let $values = [], $schema;
+            if (property.enum) {
+                $values = property.enum || [];
             }
-            return isCheckBox ? propertySchema.items.enum : propertySchema.enum;
+            else if (property.$data) {
+                $values = (yield this.datasource.dispatch('get', dataPath)) || [];
+                $schema = yield this.datasource.getSchema(dataPath);
+                $schema = $schema.items || $schema;
+            }
+            else {
+                $values = [];
+            }
+            return property.enum || (yield Promise.all($values.map((arrayItem) => __awaiter(this, void 0, void 0, function* () {
+                return {
+                    name: (utils_1.getType(arrayItem) === 'Object') ? yield this.getName(arrayItem, null, $schema) : arrayItem,
+                    value: `${dataPath}/${arrayItem._id || arrayItem}`,
+                    disabled: !!property.readOnly
+                };
+            })))) || [];
         });
     }
     evaluate(_, itemPath, propertySchema, propertyValue) {

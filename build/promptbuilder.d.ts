@@ -3,6 +3,7 @@ import { IPrompt } from './interfaces';
 import { Dispatcher } from 'autoinquirer';
 import { DataRenderer } from 'autoinquirer/build/datasource';
 export declare type Item = any;
+export declare function absolute(testPath: string, absolutePath: string): string;
 export declare const lookupValues: (schemaPath: string | string[], obj: any, currPath?: string) => any;
 export declare class PromptBuilder extends DataRenderer {
     private datasource;
