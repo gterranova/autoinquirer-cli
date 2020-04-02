@@ -136,7 +136,7 @@ class PromptBuilder extends datasource_1.DataRenderer {
         return __awaiter(this, void 0, void 0, function* () {
             const defaultValue = propertyValue !== undefined ? propertyValue : (propertySchema ? propertySchema.default : undefined);
             const isCheckbox = this.isCheckBox(propertySchema);
-            const choices = yield this.getOptions(itemPath, propertySchema);
+            const choices = yield this.getOptions(itemPath, propertySchema, propertyValue);
             return {
                 name: `value`,
                 message: `Enter ${propertySchema.type ? propertySchema.type.toString().toLowerCase() : 'value'}:`,
@@ -227,12 +227,16 @@ class PromptBuilder extends datasource_1.DataRenderer {
         });
     }
     getName(value, propertyNameOrIndex, propertySchema) {
+        var _a;
         return __awaiter(this, void 0, void 0, function* () {
             const head = propertyNameOrIndex !== null ? `${propertyNameOrIndex}: ` : '';
             let tail = '';
-            if (propertySchema && propertySchema.$data && typeof propertySchema.$data === 'string') {
-                propertySchema = yield this.datasource.getSchema(value);
-                value = (yield this.datasource.dispatch('get', value)) || '';
+            if (((_a = propertySchema === null || propertySchema === void 0 ? void 0 : propertySchema.$data) === null || _a === void 0 ? void 0 : _a.path) && typeof propertySchema.$data.path === 'string') {
+                const refSchema = yield this.datasource.getSchema(value);
+                if (propertySchema === null || propertySchema === void 0 ? void 0 : propertySchema.$data) {
+                    propertySchema = refSchema;
+                    value = (yield this.datasource.dispatch('get', value)) || '';
+                }
             }
             if (propertySchema.hasOwnProperty('$title') && value) {
                 const template = Handlebars.compile(propertySchema.$title);
@@ -284,16 +288,17 @@ class PromptBuilder extends datasource_1.DataRenderer {
         ;
         return propertySchema.enum !== undefined || propertySchema.$data !== undefined;
     }
-    getOptions(itemPath, propertySchema) {
+    getOptions(itemPath, propertySchema, propertyValue) {
+        var _a;
         return __awaiter(this, void 0, void 0, function* () {
             const isCheckBox = this.isCheckBox(propertySchema);
             const property = isCheckBox ? propertySchema.items : propertySchema;
-            const dataPath = absolute(property.$data || '', itemPath);
+            let dataPath = absolute(((_a = property === null || property === void 0 ? void 0 : property.$data) === null || _a === void 0 ? void 0 : _a.path) || '', itemPath);
             let $values = [], $schema;
             if (property.enum) {
                 $values = property.enum || [];
             }
-            else if (property.$data) {
+            else if (property === null || property === void 0 ? void 0 : property.$data) {
                 $values = (yield this.datasource.dispatch('get', dataPath)) || [];
                 $schema = yield this.datasource.getSchema(dataPath);
                 $schema = $schema.items || $schema;
@@ -303,8 +308,8 @@ class PromptBuilder extends datasource_1.DataRenderer {
             }
             return property.enum || (yield Promise.all($values.map((arrayItem) => __awaiter(this, void 0, void 0, function* () {
                 return {
-                    name: (utils_1.getType(arrayItem) === 'Object') ? yield this.getName(arrayItem, null, $schema) : arrayItem,
-                    value: `${dataPath}/${arrayItem._id || arrayItem}`,
+                    name: (utils_1.getType(arrayItem) === 'Object') ? yield this.getName(arrayItem._fullPath || arrayItem, null, $schema) : arrayItem,
+                    value: arrayItem._fullPath || `${dataPath}/${arrayItem._id || arrayItem}`,
                     disabled: !!property.readOnly
                 };
             })))) || [];
