@@ -13,35 +13,27 @@ const chalk = require('chalk');
 var program = require('commander');
 const inquirer = require('inquirer');
 const Subject = require('rxjs').Subject;
-const autoinquirer_1 = require("autoinquirer");
-const autoinquirer_2 = require("./autoinquirer");
+const autoinquirer_1 = require("./autoinquirer");
 const promptbuilder_1 = require("./promptbuilder");
-const createDatasource = function (schemaFile, dataFile, renderer) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const dispatcher = new autoinquirer_1.Dispatcher(schemaFile, dataFile, renderer);
-        yield dispatcher.connect();
-        return dispatcher;
-    });
-};
+const screenHeader = '\x1Bc' + chalk.blue.bold('\n  Autoinquirer v.1.0.0') + '\n\n';
 function main() {
     return __awaiter(this, void 0, void 0, function* () {
         const prompts = new Subject();
-        const dispatcher = yield createDatasource(program.args[0], program.args[1]);
-        const promptBuilder = new promptbuilder_1.PromptBuilder();
-        dispatcher.setRenderer(promptBuilder);
-        promptBuilder.setDataSource(dispatcher);
-        const autoInquirer = new autoinquirer_2.AutoInquirer(dispatcher);
+        const dispatcher = new promptbuilder_1.PromptBuilder(program.args[0], program.args[1]);
+        yield dispatcher.connect();
+        const autoInquirer = new autoinquirer_1.AutoInquirer(dispatcher);
         const inq = inquirer.prompt(prompts);
-        const bottomBar = new inquirer.ui.BottomBar();
         inq.ui.process.subscribe(data => { autoInquirer.onAnswer(data).then(() => autoInquirer.run()); });
-        autoInquirer.on('prompt', prompt => prompts.next(prompt));
+        autoInquirer.on('prompt', prompt => { console.log(screenHeader); prompts.next(prompt); });
         autoInquirer.on('error', state => {
             const errorString = state.errors + '\n';
-            bottomBar.updateBottomBar(chalk.red(errorString));
+            console.log(chalk.red(errorString));
         });
-        autoInquirer.on('exit', state => console.log(state));
         autoInquirer.on('complete', () => prompts.complete());
-        inq.then(() => dispatcher.close());
+        inq.then(() => __awaiter(this, void 0, void 0, function* () {
+            yield dispatcher.close();
+            process.exit(0);
+        }));
         autoInquirer.run();
     });
 }

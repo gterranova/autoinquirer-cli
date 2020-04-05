@@ -16,9 +16,10 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const datasource_1 = require("autoinquirer/build/datasource");
+const autoinquirer_1 = require("autoinquirer");
 const utils_1 = require("./utils");
 const Handlebars = __importStar(require("handlebars"));
+const chalk = require('chalk');
 const separatorChoice = { type: 'separator' };
 const defaultActions = {
     'object': ["back", "del", "exit"],
@@ -74,19 +75,19 @@ exports.lookupValues = (schemaPath = '', obj, currPath = '') => {
     }
     return output;
 };
-class PromptBuilder extends datasource_1.DataRenderer {
-    constructor(datasource) {
-        super();
-    }
-    setDataSource(datasource) {
-        this.datasource = datasource;
-    }
-    render(methodName, itemPath, propertySchema, propertyValue) {
+class PromptBuilder extends autoinquirer_1.Dispatcher {
+    render(methodName, options) {
         return __awaiter(this, void 0, void 0, function* () {
             if (methodName === "exit") {
                 return null;
             }
-            return this.evaluate(methodName, itemPath, propertySchema, propertyValue);
+            let itemPath = (options === null || options === void 0 ? void 0 : options.itemPath) || '';
+            let propertySchema = (options === null || options === void 0 ? void 0 : options.schema) || (yield this.getSchema({ itemPath }));
+            let propertyValue = (options === null || options === void 0 ? void 0 : options.value) || (yield this.dispatch('get', Object.assign(Object.assign({}, options), { schema: propertySchema })));
+            if (this.isPrimitive(propertySchema)) {
+                return this.makePrompt(itemPath, propertySchema, propertyValue);
+            }
+            return this.makeMenu(itemPath, propertySchema, propertyValue);
         });
     }
     getActions(itemPath, propertySchema) {
@@ -121,11 +122,11 @@ class PromptBuilder extends datasource_1.DataRenderer {
     makeMenu(itemPath, propertySchema, propertyValue) {
         return __awaiter(this, void 0, void 0, function* () {
             const baseChoices = yield this.getChoices(itemPath, propertySchema, propertyValue);
-            const choices = [...baseChoices, separatorChoice];
+            const choices = [separatorChoice, ...baseChoices, separatorChoice];
             return {
                 name: 'state',
                 type: 'list',
-                message: yield this.getName(propertyValue, null, propertySchema),
+                message: (yield this.getName(propertyValue, null, propertySchema)).trim(),
                 choices: [...choices, ...this.getActions(itemPath, propertySchema)],
                 pageSize: 20,
                 path: itemPath
@@ -229,31 +230,38 @@ class PromptBuilder extends datasource_1.DataRenderer {
     getName(value, propertyNameOrIndex, propertySchema) {
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
-            const head = propertyNameOrIndex !== null ? `${propertyNameOrIndex}: ` : '';
+            let head = propertyNameOrIndex !== null ? `${propertyNameOrIndex}: ` : '';
+            head = head.replace(/([A-Z]{2,})/g, " $1").replace(/([A-Z][a-z])/g, " $1");
+            head = chalk.gray(head.charAt(0).toUpperCase() + head.slice(1)).padEnd(30);
             let tail = '';
-            if (((_a = propertySchema === null || propertySchema === void 0 ? void 0 : propertySchema.$data) === null || _a === void 0 ? void 0 : _a.path) && typeof propertySchema.$data.path === 'string') {
-                const refSchema = yield this.datasource.getSchema(value);
+            if (value && ((_a = propertySchema === null || propertySchema === void 0 ? void 0 : propertySchema.$data) === null || _a === void 0 ? void 0 : _a.path) && typeof propertySchema.$data.path === 'string') {
+                const refSchema = yield this.getSchema({ itemPath: value });
                 if (propertySchema === null || propertySchema === void 0 ? void 0 : propertySchema.$data) {
                     propertySchema = refSchema;
-                    value = (yield this.datasource.dispatch('get', value)) || '';
+                    value = (yield this.dispatch('get', { itemPath: value })) || '';
                 }
             }
-            if (propertySchema.hasOwnProperty('$title') && value) {
+            if (value && propertySchema.hasOwnProperty('$title')) {
                 const template = Handlebars.compile(propertySchema.$title);
-                tail = template(value);
-                if (tail) {
-                    propertySchema = yield this.datasource.getSchema(tail);
-                    if (propertySchema) {
-                        value = (yield this.datasource.dispatch('get', tail)) || '';
-                        return yield this.getName(value, null, propertySchema);
-                    }
+                tail = template(value).trim();
+                if (tail && tail.indexOf('/')) {
+                    tail = (yield Promise.all(tail.split(' ').map((labelPart) => __awaiter(this, void 0, void 0, function* () {
+                        if (labelPart && labelPart.indexOf('/') > 3) {
+                            propertySchema = yield this.getSchema({ itemPath: labelPart });
+                            if (propertySchema && !propertySchema.$data) {
+                                value = (yield this.dispatch('get', { itemPath: labelPart, schema: propertySchema })) || '';
+                                return yield this.getName(value, null, propertySchema);
+                            }
+                        }
+                        return labelPart;
+                    })))).join(' ').trim();
                 }
             }
             else if ((propertySchema.type === 'object' || propertySchema.type === 'array') && propertySchema.title) {
                 tail = propertySchema.title;
             }
             else if (propertySchema.type === 'array' && value && value.length) {
-                tail = (yield Promise.all(value.map((i) => __awaiter(this, void 0, void 0, function* () { return yield this.getName(i, null, propertySchema.items); })))).join(', ');
+                tail = (yield Promise.all(value.map((i) => __awaiter(this, void 0, void 0, function* () { return yield (yield this.getName(i, null, propertySchema.items)).trim(); })))).join(', ');
             }
             else {
                 tail = (value !== undefined && value !== null) ?
@@ -261,8 +269,8 @@ class PromptBuilder extends datasource_1.DataRenderer {
                         (value.title || value.name || `[${propertySchema.type}]`)) :
                     '';
             }
-            if (tail && tail.length > 100) {
-                tail = `${tail.slice(0, 97)}...`;
+            if (tail && tail.length > 90) {
+                tail = `${tail.slice(0, 87)}...`;
             }
             return `${head}${tail}`;
         });
@@ -299,27 +307,21 @@ class PromptBuilder extends datasource_1.DataRenderer {
                 $values = property.enum || [];
             }
             else if (property === null || property === void 0 ? void 0 : property.$data) {
-                $values = (yield this.datasource.dispatch('get', dataPath)) || [];
-                $schema = yield this.datasource.getSchema(dataPath);
+                $schema = yield this.getSchema({ itemPath: dataPath });
                 $schema = $schema.items || $schema;
+                $values = (yield this.dispatch('get', { itemPath: dataPath, schema: $schema })) || [];
             }
             else {
                 $values = [];
             }
             return property.enum || (yield Promise.all($values.map((arrayItem) => __awaiter(this, void 0, void 0, function* () {
                 return {
-                    name: (utils_1.getType(arrayItem) === 'Object') ? yield this.getName(arrayItem._fullPath || arrayItem, null, $schema) : arrayItem,
+                    name: (utils_1.getType(arrayItem) === 'Object') ? yield (yield this.getName(arrayItem._fullPath || arrayItem, null, $schema)).trim() : arrayItem,
                     value: arrayItem._fullPath || `${dataPath}/${arrayItem._id || arrayItem}`,
                     disabled: !!property.readOnly
                 };
             })))) || [];
         });
-    }
-    evaluate(_, itemPath, propertySchema, propertyValue) {
-        if (this.isPrimitive(propertySchema)) {
-            return this.makePrompt(itemPath, propertySchema, propertyValue);
-        }
-        return this.makeMenu(itemPath, propertySchema, propertyValue);
     }
 }
 exports.PromptBuilder = PromptBuilder;

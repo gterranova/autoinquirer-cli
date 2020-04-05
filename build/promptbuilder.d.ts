@@ -1,15 +1,12 @@
-import { IProperty } from 'autoinquirer/build/interfaces';
+import { IDispatchOptions } from 'autoinquirer/build/interfaces';
 import { IPrompt } from './interfaces';
 import { Dispatcher } from 'autoinquirer';
-import { DataRenderer } from 'autoinquirer/build/datasource';
+import { IDataRenderer } from 'autoinquirer/build/datasource';
 export declare type Item = any;
 export declare function absolute(testPath: string, absolutePath: string): string;
 export declare const lookupValues: (schemaPath: string | string[], obj: any, currPath?: string) => any;
-export declare class PromptBuilder extends DataRenderer {
-    private datasource;
-    constructor(datasource?: Dispatcher);
-    setDataSource(datasource: Dispatcher): void;
-    render(methodName: string, itemPath: string, propertySchema: IProperty, propertyValue: Item): Promise<IPrompt>;
+export declare class PromptBuilder extends Dispatcher implements IDataRenderer {
+    render(methodName: string, options?: IDispatchOptions): Promise<IPrompt>;
     private getActions;
     private checkAllowed;
     private makeMenu;
@@ -20,6 +17,5 @@ export declare class PromptBuilder extends DataRenderer {
     private isCheckBox;
     private isSelect;
     private getOptions;
-    private evaluate;
 }
 //# sourceMappingURL=promptbuilder.d.ts.map

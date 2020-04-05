@@ -1,12 +1,13 @@
 // tslint:disable:no-console
 
-import { Action, IProperty, PrimitiveType } from 'autoinquirer/build/interfaces';
+import { Action, IProperty, PrimitiveType, IDispatchOptions } from 'autoinquirer/build/interfaces';
 import { INameValueState, IPrompt,  } from './interfaces';
 
 import { Dispatcher } from 'autoinquirer';
-import { DataRenderer } from 'autoinquirer/build/datasource';
+import { IDataRenderer } from 'autoinquirer/build/datasource';
 import { backPath, evalExpr, getType } from './utils';
 import * as Handlebars from 'handlebars';
+const chalk = require('chalk');
 
 // tslint:disable-next-line:no-any
 export declare type Item = any;
@@ -59,22 +60,20 @@ export const lookupValues = (schemaPath: string | string[] = '', obj: any, currP
     return output;    
 }
 
-export class PromptBuilder extends DataRenderer {
-    private datasource: Dispatcher;
+export class PromptBuilder extends Dispatcher implements IDataRenderer {
 
-    constructor(datasource?: Dispatcher) {
-        super();
-        //this.datasource = datasource;
-    }
-
-    public setDataSource(datasource: Dispatcher) {
-        this.datasource = datasource;
-    }
-
-    public async render(methodName: string, itemPath: string, propertySchema: IProperty, propertyValue: Item): Promise<IPrompt> {
+    public async render(methodName: string, options?: IDispatchOptions): Promise<IPrompt> {
         if (methodName === Action.EXIT) { return null; }
 
-        return this.evaluate(methodName, itemPath, propertySchema, propertyValue);
+        let itemPath = options?.itemPath || '';
+        let propertySchema = options?.schema || await this.getSchema({ itemPath });
+        let propertyValue = options?.value || await this.dispatch('get', { ...options, schema: propertySchema });
+
+        if (this.isPrimitive(propertySchema)) {
+            return this.makePrompt(itemPath, propertySchema, propertyValue);
+        }
+
+        return this.makeMenu(itemPath, propertySchema, propertyValue);
     }
     
     private getActions(itemPath: string, propertySchema: IProperty): INameValueState[] {
@@ -110,12 +109,12 @@ export class PromptBuilder extends DataRenderer {
         // select item
         const baseChoices = await this.getChoices(itemPath, propertySchema, propertyValue);
 
-        const choices = [...baseChoices, separatorChoice];
+        const choices = [separatorChoice, ...baseChoices, separatorChoice];
                 
         return {
             name: 'state',
             type: 'list',
-            message: await this.getName(propertyValue, null, propertySchema),
+            message: (await this.getName(propertyValue, null, propertySchema)).trim(),
             choices: [...choices, ...this.getActions(itemPath, propertySchema)],
             pageSize: 20,
             path: itemPath
@@ -231,37 +230,46 @@ export class PromptBuilder extends DataRenderer {
     }
 
     private async getName(value: Item, propertyNameOrIndex: string | number, propertySchema: IProperty): Promise<string> {
-        const head = propertyNameOrIndex !== null ? `${propertyNameOrIndex}: `:'';
+        let head = propertyNameOrIndex !== null ? `${propertyNameOrIndex}: `:'';
+        head = head.replace(/([A-Z]{2,})/g, " $1").replace(/([A-Z][a-z])/g, " $1");
+        head = chalk.gray(head.charAt(0).toUpperCase() + head.slice(1)).padEnd(30);
+
         let tail = '';
-        if (propertySchema?.$data?.path && typeof propertySchema.$data.path === 'string') {
-            const refSchema = await this.datasource.getSchema(value);
+        if (value && propertySchema?.$data?.path && typeof propertySchema.$data.path === 'string') {
+            const refSchema = await this.getSchema({ itemPath: value });
             if (propertySchema?.$data) {
                 propertySchema = refSchema;
-                value = await this.datasource.dispatch('get', value) || '';
+                value = await this.dispatch('get', { itemPath: value }) || '';
             }
         }
-        if (propertySchema.hasOwnProperty('$title') && value) {
+        if (value && propertySchema.hasOwnProperty('$title')) {
             const template = Handlebars.compile(propertySchema.$title);
-            tail = template(value);
-            if (tail) {
-                propertySchema = await this.datasource.getSchema(tail);
-                if (propertySchema) {
-                    value = await this.datasource.dispatch('get', tail) || '';
-                    return await this.getName(value, null, propertySchema);
-                }    
+            tail = template(value).trim();
+            if (tail && tail.indexOf('/')) {
+                tail = (await Promise.all(tail.split(' ').map(async labelPart => {
+                    if (labelPart && labelPart.indexOf('/') > 3) {
+                        //console.log(labelPart)
+                        propertySchema = await this.getSchema({ itemPath: labelPart });
+                        if (propertySchema && !propertySchema.$data) {
+                            value = await this.dispatch('get', { itemPath: labelPart, schema: propertySchema }) || '';
+                            return await this.getName(value, null, propertySchema);
+                        }    
+                    }
+                    return labelPart;
+                }))).join(' ').trim();
             }
         } else if ((propertySchema.type === 'object' || propertySchema.type === 'array') && propertySchema.title) {
             tail = propertySchema.title;
         } else if (propertySchema.type === 'array' && value && value.length) {
-            tail = (await Promise.all(value.map( async i => await this.getName(i, null, propertySchema.items) ))).join(', ');
+            tail = (await Promise.all(value.map( async i => await (await this.getName(i, null, propertySchema.items)).trim() ))).join(', ');
         } else {
             tail = (value !== undefined && value !== null) ?
             (propertySchema.type !== 'object' && propertySchema.type !== 'array' ? JSON.stringify(value) :  
                 (value.title || value.name || `[${propertySchema.type}]`)):
             '';
         }
-        if (tail && tail.length > 100) {
-            tail = `${tail.slice(0,97)}...`;
+        if (tail && tail.length > 90) {
+            tail = `${tail.slice(0,87)}...`;
         }
         return `${head}${tail}`;
     }
@@ -295,27 +303,19 @@ export class PromptBuilder extends DataRenderer {
         if (property.enum) {
             $values = property.enum || [];
         } else if (property?.$data) {
-            $values = await this.datasource.dispatch('get', dataPath) || [];
-            $schema = await this.datasource.getSchema(dataPath);
+            $schema = await this.getSchema({ itemPath: dataPath });
             $schema = $schema.items || $schema;
+            $values = await this.dispatch('get', { itemPath: dataPath, schema: $schema }) || [];
         } else {
             $values = [];
         }
         return property.enum || await Promise.all($values.map(async (arrayItem: any) => {
             return { 
-                name: (getType(arrayItem) === 'Object')? await this.getName(arrayItem._fullPath || arrayItem, null, $schema): arrayItem,
+                name: (getType(arrayItem) === 'Object')? await (await this.getName(arrayItem._fullPath || arrayItem, null, $schema)).trim(): arrayItem,
                 value: arrayItem._fullPath || `${dataPath}/${arrayItem._id || arrayItem}`,
                 disabled: !!property.readOnly
             };
         })) || [];
     }
         
-    private evaluate(_: string, itemPath: string, propertySchema: IProperty, propertyValue: Item): Promise<IPrompt> {
-        if (this.isPrimitive(propertySchema)) {
-            return this.makePrompt(itemPath, propertySchema, propertyValue);
-        }
-
-        return this.makeMenu(itemPath, propertySchema, propertyValue);
-    }
-
 }

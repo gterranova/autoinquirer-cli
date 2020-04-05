@@ -21,7 +21,7 @@ class AutoInquirer extends events_1.EventEmitter {
         return __awaiter(this, void 0, void 0, function* () {
             const { state } = this.answer;
             try {
-                const prompt = yield this.dataDispatcher.render(state.type, state.path);
+                const prompt = yield this.dataDispatcher.render(state.type, { itemPath: state.path });
                 if (prompt === null) {
                     this.emit('complete');
                 }
@@ -54,7 +54,7 @@ class AutoInquirer extends events_1.EventEmitter {
             if (state && state.type && state.type === "push" || state.type === "del" || (state.type === "set" && value !== undefined)) {
                 const nextPath = state.type !== "push" ? utils_1.backPath(state.path) : state.path;
                 try {
-                    yield this.dataDispatcher.dispatch(state.type, state.path, undefined, value);
+                    yield this.dataDispatcher.dispatch(state.type, { itemPath: state.path, value });
                     this.answer = { state: { path: nextPath } };
                     this.emit(state.type, state);
                 }

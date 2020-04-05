@@ -2,17 +2,17 @@
 // tslint:disable:no-console
 
 import { EventEmitter } from 'events';
-import { Dispatcher } from 'autoinquirer';
 import { Action } from 'autoinquirer/build/interfaces';
 import { backPath } from './utils';
 import { IAnswer, IFeedBack, IPrompt } from './interfaces';
+import { PromptBuilder } from './promptbuilder';
 
 
 export class AutoInquirer extends EventEmitter {
-    private dataDispatcher: Dispatcher;
+    private dataDispatcher: PromptBuilder;
     private answer: IAnswer;
 
-    constructor(dataDispatcher: Dispatcher, initialAnswer: IAnswer = { state: { path: '' }}) {
+    constructor(dataDispatcher: PromptBuilder, initialAnswer: IAnswer = { state: { path: '' }}) {
         super();
         this.dataDispatcher = dataDispatcher;
         this.answer = initialAnswer;
@@ -21,7 +21,7 @@ export class AutoInquirer extends EventEmitter {
     public async next(): Promise<IPrompt> {
         const { state } = this.answer;
         try {
-            const prompt = await this.dataDispatcher.render(state.type, state.path);
+            const prompt = await this.dataDispatcher.render(state.type, { itemPath: state.path });
             if (prompt === null) {
                 this.emit('complete');
             }
@@ -59,7 +59,7 @@ export class AutoInquirer extends EventEmitter {
             const nextPath = state.type !== Action.PUSH? backPath(state.path): state.path;
             
             try {
-                await this.dataDispatcher.dispatch(state.type, state.path, undefined, value);
+                await this.dataDispatcher.dispatch(state.type, { itemPath: state.path, value});
                 this.answer = { state: { path: nextPath } };
                 this.emit(state.type, state);
             } catch (e) {
