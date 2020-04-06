@@ -14,14 +14,58 @@
         "other": {
             "type": "object",
             "properties": {
-                "name": {
-                    "type": "string"
+                "myArray": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": { "type": "string" },
+                            "one2oneRef": { "type": "string", "$data": { "path": "other/myRef1", "remoteField": "one2one" } },
+                            "one2manyRefs": { "type": "array", "items": { "type": "string", "$data": { "path": "other/myRef1", "remoteField": "one2many" } } },
+                            "many2manyRefs": { "type": "array", "items": { "type": "string", "$data": { "path": "other/myObj", "remoteField": "many2many" } } }
+                        }
+                    }
+                },
+                "myRef1": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": { "type": "string" },
+                            "one2one": {
+                                "type": "string",
+                                "$data": { "path": "../../../myArray", "remoteField": "one2oneRef" }
+                            },
+                            "one2many": {
+                                "type": "string",
+                                "$data": { "path": "../../../myArray", "remoteField": "one2manyRefs" }
+                            },
+                            "many2many": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string",
+                                    "$data": { "path": "../../../myArray", "remoteField": "many2manyRefs" }
+                                }
+                            }        
+                        }
+                    }
+                },
+                "myObj": {
+                    "type":"array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "many2many": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string",
+                                    "$data": { "path": "other/myArray", "remoteField": "many2manyRefs" }
+                                }
+                            }        
+                        }        
+                    }
                 }
-            },
-            "$proxy": {
-                "proxyName": "JsonDataSource",
-                "initParams": ["other.json"]
-            }                  
+            }             
         }
     }
 }

@@ -1,1 +1,44 @@
-{}
+{
+  "other": {
+    "myArray": [
+      {
+        "_id": "5e8b719edd0d608d302e5315",
+        "name": "Arr1",
+        "one2oneRef": "other/myRef1/5e8b71addd0d608d30250d52",
+        "one2manyRefs": [],
+        "many2manyRefs": []
+      },
+      {
+        "_id": "5e8b71a3dd0d608d301f7929",
+        "name": "Arr2",
+        "one2manyRefs": [],
+        "one2oneRef": "other/myRef1/5e8b71addd0d608d30250d52",
+        "many2manyRefs": []
+      }
+    ],
+    "myRef1": [
+      {
+        "_id": "5e8b71addd0d608d30250d52",
+        "name": "Re1",
+        "one2one": "other/myArray/5e8b719edd0d608d302e5315",
+        "one2many": ""
+      },
+      {
+        "_id": "5e8b71b5dd0d608d303880fa",
+        "name": "Re2",
+        "one2many": "",
+        "one2one": ""
+      }
+    ],
+    "myObj": [
+      {
+        "_id": "5e8b84badd0d605c9884ed2c",
+        "many2many": []
+      },
+      {
+        "_id": "5e8b852ddd0d604e781b49fb",
+        "many2many": []
+      }
+    ]
+  }
+}

@@ -26,7 +26,7 @@ const defaultActions = {
     'array': ["push", "back", "exit"]
 };
 function absolute(testPath, absolutePath) {
-    if (testPath && testPath[0] === '/') {
+    if (testPath && testPath[0] !== '.') {
         return testPath;
     }
     if (!testPath) {
@@ -301,15 +301,19 @@ class PromptBuilder extends autoinquirer_1.Dispatcher {
         return __awaiter(this, void 0, void 0, function* () {
             const isCheckBox = this.isCheckBox(propertySchema);
             const property = isCheckBox ? propertySchema.items : propertySchema;
-            let dataPath = absolute(((_a = property === null || property === void 0 ? void 0 : property.$data) === null || _a === void 0 ? void 0 : _a.path) || '', itemPath);
+            const $data = (property === null || property === void 0 ? void 0 : property.$data) || ((_a = property === null || property === void 0 ? void 0 : property.items) === null || _a === void 0 ? void 0 : _a.$data);
+            let dataPath = absolute(($data === null || $data === void 0 ? void 0 : $data.path) || '', itemPath);
             let $values = [], $schema;
             if (property.enum) {
                 $values = property.enum || [];
             }
-            else if (property === null || property === void 0 ? void 0 : property.$data) {
+            else if ($data === null || $data === void 0 ? void 0 : $data.path) {
                 $schema = yield this.getSchema({ itemPath: dataPath });
                 $schema = $schema.items || $schema;
-                $values = (yield this.dispatch('get', { itemPath: dataPath, schema: $schema })) || [];
+                $values = yield this.dispatch('get', { itemPath: dataPath, schema: $schema });
+                if (!Array.isArray($values) && $values[$data.remoteField]) {
+                    throw new Error("Promptbuilder: possible not allowed many2many relation. Make sure remote is inside an array");
+                }
             }
             else {
                 $values = [];

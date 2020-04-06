@@ -20,7 +20,7 @@ const defaultActions: { [key: string]: string[] } = {
 };
 
 export function absolute(testPath: string, absolutePath: string): string {
-    if (testPath && testPath[0] === '/') { return testPath; }
+    if (testPath && testPath[0] !== '.') { return testPath; }
     if (!testPath) { return absolutePath; }
     const p0 = absolutePath.split('/');
     const rel = testPath.split('/');
@@ -298,14 +298,19 @@ export class PromptBuilder extends Dispatcher implements IDataRenderer {
         const isCheckBox = this.isCheckBox(propertySchema);
         
         const property = isCheckBox? propertySchema.items : propertySchema;
-        let dataPath = absolute(property?.$data?.path||'', itemPath);
+        const $data = property?.$data || property?.items?.$data;
+        let dataPath = absolute($data?.path||'', itemPath);
         let $values = [], $schema: IProperty;
+
         if (property.enum) {
             $values = property.enum || [];
-        } else if (property?.$data) {
+        } else if ($data?.path) {
             $schema = await this.getSchema({ itemPath: dataPath });
             $schema = $schema.items || $schema;
-            $values = await this.dispatch('get', { itemPath: dataPath, schema: $schema }) || [];
+            $values = await this.dispatch('get', { itemPath: dataPath, schema: $schema });
+            if (!Array.isArray($values) && $values[$data.remoteField]) {
+                throw new Error("Promptbuilder: possible not allowed many2many relation. Make sure remote is inside an array")
+            }
         } else {
             $values = [];
         }
