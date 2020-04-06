@@ -15,11 +15,14 @@ const inquirer = require('inquirer');
 const Subject = require('rxjs').Subject;
 const autoinquirer_1 = require("./autoinquirer");
 const promptbuilder_1 = require("./promptbuilder");
+const autoinquirer_2 = require("autoinquirer");
 const screenHeader = '\x1Bc' + chalk.blue.bold('\n  Autoinquirer v.1.0.0') + '\n\n';
 function main() {
     return __awaiter(this, void 0, void 0, function* () {
         const prompts = new Subject();
         const dispatcher = new promptbuilder_1.PromptBuilder(program.args[0], program.args[1]);
+        dispatcher.registerProxy({ name: 'Dispatcher', classRef: autoinquirer_2.Dispatcher });
+        dispatcher.registerProxy({ name: 'JsonDataSource', classRef: autoinquirer_2.JsonDataSource });
         yield dispatcher.connect();
         const autoInquirer = new autoinquirer_1.AutoInquirer(dispatcher);
         const inq = inquirer.prompt(prompts);

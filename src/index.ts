@@ -7,6 +7,7 @@ const inquirer = require('inquirer');
 const Subject = require('rxjs').Subject;
 import { AutoInquirer } from './autoinquirer';
 import { PromptBuilder } from './promptbuilder';
+import { JsonDataSource, Dispatcher } from 'autoinquirer';
 
 
 //const DIST_FOLDER = join(process.cwd(), 'dist/apps/client');
@@ -16,6 +17,8 @@ async function main() { // jshint ignore:line
 
     const prompts = new Subject();
     const dispatcher = new PromptBuilder(program.args[0], program.args[1]); // jshint ignore:line
+    dispatcher.registerProxy({ name: 'Dispatcher', classRef: Dispatcher });
+    dispatcher.registerProxy({ name: 'JsonDataSource', classRef: JsonDataSource });
     await dispatcher.connect();
     const autoInquirer = new AutoInquirer(dispatcher);
 

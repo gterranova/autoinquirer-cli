@@ -1,0 +1,27 @@
+{
+    "$id": "http://json-schema.org/draft-06/schema#",
+    "$schema": "http://json-schema.org/draft-06/schema#",
+    "type": "object",
+    "properties": {
+        "api": {
+            "type": "object",
+            "properties": {},
+            "$proxy": {
+                "proxyName": "Dispatcher",
+                "initParams": ["..\\autoinquirer-composer\\examples\\schema.json", "..\\autoinquirer-composer\\examples\\data.json"]
+            }                  
+        },
+        "other": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                }
+            },
+            "$proxy": {
+                "proxyName": "JsonDataSource",
+                "initParams": ["other.json"]
+            }                  
+        }
+    }
+}

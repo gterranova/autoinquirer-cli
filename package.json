@@ -4,7 +4,7 @@
   "description": "",
   "main": "build/index.js",
   "scripts": {
-    "start": "npm run build && node . ..\\autoinquirer-composer\\examples\\schema.json ..\\autoinquirer-composer\\examples\\data.json",
+    "start": "npm run build && node . schema.json data.json",
     "clean": "rimraf coverage build tmp dist",
     "build": "tsc -p tsconfig.json",
     "watch": "tsc -w -p tsconfig.json",
