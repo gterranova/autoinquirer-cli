@@ -1,16 +1,22 @@
 // tslint:disable:no-console
 
-import { Action, IProperty, PrimitiveType, IDispatchOptions } from 'autoinquirer/build/interfaces';
+import { Action, IProperty, PrimitiveType, IDispatchOptions, IProxyInfo } from 'autoinquirer/build/interfaces';
 import { INameValueState, IPrompt,  } from './interfaces';
 
 import { Dispatcher } from 'autoinquirer';
-import { IDataRenderer } from 'autoinquirer/build/datasource';
+import { IDataRenderer, AbstractDispatcher, AbstractDataSource } from 'autoinquirer/build/datasource';
 import { backPath, evalExpr, getType } from './utils';
 import * as Handlebars from 'handlebars';
 const chalk = require('chalk');
 
 // tslint:disable-next-line:no-any
 export declare type Item = any;
+
+interface IEntryPointInfo {
+    proxyInfo: IProxyInfo;
+    parentPath: string;
+    objPath: string;
+};
 
 const separatorChoice = {type: 'separator'};
 
@@ -38,8 +44,8 @@ export function absolute(testPath: string, absolutePath: string): string {
     return p0.join('/');
 }
 
-export const lookupValues = (schemaPath: string | string[] = '', obj: any, currPath: string = ''): any => {
-    const parts = typeof schemaPath === 'string' ? schemaPath.split('/') : schemaPath;
+export const lookupValues = (itemPath: string | string[] = '', obj: any, currPath: string = ''): any => {
+    const parts = typeof itemPath === 'string' ? itemPath.split('/') : itemPath;
     const key = parts[0];
     const converted = currPath.split('/');
     let output = {};
@@ -65,20 +71,22 @@ export class PromptBuilder extends Dispatcher implements IDataRenderer {
     public async render(methodName: string, options?: IDispatchOptions): Promise<IPrompt> {
         if (methodName === Action.EXIT) { return null; }
 
-        let itemPath = options?.itemPath || '';
-        let propertySchema = options?.schema || await this.getSchema({ itemPath });
-        let propertyValue = options?.value || await this.dispatch('get', { ...options, schema: propertySchema });
+        options.itemPath = await this.convertPathToUri(options?.itemPath || '');
+        options.schema = options?.schema || await this.getSchema(options);
+        options.value = options?.value || await this.dispatch('get', options);
+        const { entryPointInfo } = await this.getDataSourceInfo({ itemPath: options.itemPath });   
+        options.parentPath = entryPointInfo?.parentPath;
 
-        if (this.isPrimitive(propertySchema)) {
-            return this.makePrompt(itemPath, propertySchema, propertyValue);
+        if (this.isPrimitive(options.schema)) {
+            return this.makePrompt(options);
         }
 
-        return this.makeMenu(itemPath, propertySchema, propertyValue);
+        return this.makeMenu(options);
     }
     
-    private getActions(itemPath: string, propertySchema: IProperty): INameValueState[] {
+    private getActions(itemPath: string, schema: IProperty): INameValueState[] {
         const actions: INameValueState[] = [];
-        const types = !Array.isArray(propertySchema.type)? [propertySchema.type] : propertySchema.type;
+        const types = !Array.isArray(schema.type)? [schema.type] : schema.type;
         let defaultTypeActions = [];
         types.map( type => {
             if (defaultActions[type]) {
@@ -91,7 +99,7 @@ export class PromptBuilder extends Dispatcher implements IDataRenderer {
                 if (itemPath) {
                     actions.push({ name: 'Back', value: { path: backPath(itemPath) }});
                 }
-            } else if (propertySchema.readOnly !== true || name === Action.EXIT) {
+            } else if (schema.readOnly !== true || name === Action.EXIT) {
                 actions.push({ name: (name.slice(0,1).toUpperCase()+name.slice(1)), value: { path: itemPath, type: name }});
             }
         });
@@ -99,39 +107,41 @@ export class PromptBuilder extends Dispatcher implements IDataRenderer {
         return actions;
     } 
 
-    private async checkAllowed(propertySchema: IProperty, parentPropertyValue: Item): Promise<boolean> {
-        if (!propertySchema || !propertySchema.depends) { return true; }
+    private async checkAllowed(schema: IProperty, parentValue: Item): Promise<boolean> {
+        if (!schema || !schema.depends) { return true; }
 
-        return parentPropertyValue? !!evalExpr(propertySchema.depends, parentPropertyValue): true;
+        return parentValue? !!evalExpr(schema.depends, parentValue): true;
     }
 
-    private async makeMenu(itemPath: string, propertySchema: IProperty, propertyValue: Item): Promise<IPrompt> {
+    private async makeMenu(options: IDispatchOptions): Promise<IPrompt> {
+        const { itemPath, schema, value } = options;
         // select item
-        const baseChoices = await this.getChoices(itemPath, propertySchema, propertyValue);
+        const baseChoices = await this.getChoices(options);
 
         const choices = [separatorChoice, ...baseChoices, separatorChoice];
                 
         return {
             name: 'state',
             type: 'list',
-            message: (await this.getName(propertyValue, null, propertySchema)).trim(),
-            choices: [...choices, ...this.getActions(itemPath, propertySchema)],
+            message: (await this.getName(options)).trim(),
+            choices: [...choices, ...this.getActions(itemPath, schema)],
             pageSize: 20,
             path: itemPath
         };
     }
     
-    private async makePrompt(itemPath: string, propertySchema: IProperty, propertyValue: Item): Promise<IPrompt> {        
-        const defaultValue = propertyValue!==undefined ? propertyValue : (propertySchema ? propertySchema.default : undefined);
-        const isCheckbox = this.isCheckBox(propertySchema);
-        const choices = await this.getOptions(itemPath, propertySchema, propertyValue);
+    private async makePrompt(options: IDispatchOptions): Promise<IPrompt> {        
+        const { itemPath, schema, value } = options;
+        const defaultValue = value!==undefined ? value : (schema ? schema.default : undefined);
+        const isCheckbox = this.isCheckBox(schema);
+        const choices = await this.getOptions(options);
 
         return {
             name: `value`,
-            message: `Enter ${propertySchema.type ? propertySchema.type.toString().toLowerCase(): 'value'}:`,
+            message: `Enter ${schema.type ? schema.type.toString().toLowerCase(): 'value'}:`,
             default: defaultValue,
-            disabled: !!propertySchema.readOnly,
-            type: propertySchema.$widget || (propertySchema.type==='boolean'? 'confirm': 
+            disabled: !!schema.readOnly,
+            type: schema.$widget || (schema.type==='boolean'? 'confirm': 
                 (isCheckbox? 'checkbox':
                     (choices && choices.length? 'list':
                         'input'))),
@@ -140,27 +150,27 @@ export class PromptBuilder extends Dispatcher implements IDataRenderer {
         };
     }
 
-    private async getChoices(itemPath: string, propertySchema: IProperty, propertyValue: Item): Promise<INameValueState[]> {
-        const schemaPath = itemPath;
+    private async getChoices(options: IDispatchOptions): Promise<INameValueState[]> {
+        const { itemPath, schema, value } = options;
 
-        const basePath = schemaPath && schemaPath.length ? `${schemaPath}/`: '';
-        if (propertySchema) {
-            switch (propertySchema.type) {
+        const basePath = itemPath && itemPath.length ? `${itemPath}/`: '';
+        if (schema) {
+            switch (schema.type) {
 
                 case 'string':
                 case 'number':
                 case 'boolean':
                     return null; 
                 case 'object':
-                    const propertyProperties = propertySchema.properties? {...propertySchema.properties } : {};
-                    if (propertySchema.patternProperties && getType(propertyValue) === 'Object') {
-                        const objProperties = Object.keys(propertySchema.properties) || [];
+                    const propertyProperties = schema.properties? {...schema.properties } : {};
+                    if (schema.patternProperties && getType(value) === 'Object') {
+                        const objProperties = Object.keys(schema.properties) || [];
                         // tslint:disable-next-line:no-bitwise
-                        const otherProperties = Object.keys(propertyValue).filter( (p: string) => p[0] !== '_' && !~objProperties.indexOf(p) );
+                        const otherProperties = Object.keys(value).filter( (p: string) => p[0] !== '_' && !~objProperties.indexOf(p) );
                         for (const key of otherProperties) {
-                            const patternFound = Object.keys(propertySchema.patternProperties).find( (pattern: string) => RegExp(pattern).test(key));
+                            const patternFound = Object.keys(schema.patternProperties).find( (pattern: string) => RegExp(pattern).test(key));
                             if (patternFound) {
-                                propertyProperties[key] = propertySchema.patternProperties[patternFound];
+                                propertyProperties[key] = schema.patternProperties[patternFound];
                             }            
                         }    
                     }
@@ -168,16 +178,15 @@ export class PromptBuilder extends Dispatcher implements IDataRenderer {
                     // tslint:disable-next-line:no-return-await
                     return await Promise.all(Object.keys(propertyProperties).map( async (key: string) => {
                         const property: IProperty = propertyProperties[key];
-                        let value = propertyValue && propertyValue[key];
                         if (!property) {
-                            throw new Error(`${schemaPath}/${key} not found`);
+                            throw new Error(`${itemPath}${key} not found`);
                         }
                         
-                        return this.checkAllowed(property, propertyValue).then( async (allowed: boolean) => {
-                            const readOnly = (!!propertySchema.readOnly || !!property.readOnly);
-                            const writeOnly = (!!propertySchema.writeOnly || !!property.writeOnly);
+                        return this.checkAllowed(property, value[key]).then( async (allowed: boolean) => {
+                            const readOnly = (!!schema.readOnly || !!property.readOnly);
+                            const writeOnly = (!!schema.writeOnly || !!property.writeOnly);
                             const item: INameValueState = { 
-                                name: await this.getName(value, key, property), 
+                                name: (await this.getName({ itemPath: `${basePath}${key}`, value: value[key], schema: property, parentPath: options.parentPath})), //+` ${basePath}${key}`, 
                                 value: { path: `${basePath}${key}` },
                                 disabled: !allowed || (this.isPrimitive(property) && readOnly && !writeOnly)
                             };
@@ -192,15 +201,15 @@ export class PromptBuilder extends Dispatcher implements IDataRenderer {
                     }));
 
                 case 'array':
-                    const arrayItemSchema: IProperty = propertySchema.items;
+                    const arrayItemSchema: IProperty = schema.items;
 
-                    return await Promise.all(Array.isArray(propertyValue) && propertyValue.map( async (arrayItem: Item, idx: number) =>{
+                    return await Promise.all(Array.isArray(value) && value.map( async (arrayItem: Item, idx: number) =>{
                         const myId = (arrayItem && (arrayItem.slug || arrayItem._id)) || idx;
-                        const readOnly = (!!propertySchema.readOnly || !!arrayItemSchema.readOnly);
-                        const writeOnly = (!!propertySchema.writeOnly || !!arrayItemSchema.writeOnly);
+                        const readOnly = (!!schema.readOnly || !!arrayItemSchema.readOnly);
+                        const writeOnly = (!!schema.writeOnly || !!arrayItemSchema.writeOnly);
                         const item: INameValueState = { 
                             disabled: this.isPrimitive(arrayItemSchema) && readOnly && !writeOnly,
-                            name: await this.getName(arrayItem, ~[arrayItem.name, arrayItem.title].indexOf(myId)? null : myId, arrayItemSchema), 
+                            name: await this.getName({ itemPath: `${basePath}${myId}`, value: arrayItem, schema: arrayItemSchema, parentPath: options.parentPath}), // + ` ${basePath}${myId}`, 
                             value: {  
                                 path: `${basePath}${myId}`
                             } 
@@ -214,7 +223,7 @@ export class PromptBuilder extends Dispatcher implements IDataRenderer {
                     }) || []);
 
                 default:
-                    return propertyValue && Object.keys(propertyValue).map( (key: string) => {
+                    return value && Object.keys(value).map( (key: string) => {
                         return { 
                             name: key, 
                             value: {  
@@ -229,77 +238,106 @@ export class PromptBuilder extends Dispatcher implements IDataRenderer {
         return [];
     }
 
-    private async getName(value: Item, propertyNameOrIndex: string | number, propertySchema: IProperty): Promise<string> {
-        let head = propertyNameOrIndex !== null ? `${propertyNameOrIndex}: `:'';
-        head = head.replace(/([A-Z]{2,})/g, " $1").replace(/([A-Z][a-z])/g, " $1");
-        head = chalk.gray(head.charAt(0).toUpperCase() + head.slice(1)).padEnd(30);
+    private async getName(options: IDispatchOptions): Promise<string> {
+        options = options || {};
+        options.itemPath = options?.itemPath ? await this.convertPathToUri(options.itemPath) : '';
+        options.schema = options?.schema || await this.getSchema(options);
+        options.value = options?.value || await this.dispatch('get', options);
 
-        let tail = '';
-        if (value && propertySchema?.$data?.path && typeof propertySchema.$data.path === 'string') {
-            const refSchema = await this.getSchema({ itemPath: value });
-            if (propertySchema?.$data) {
-                propertySchema = refSchema;
-                value = await this.dispatch('get', { itemPath: value }) || '';
-            }
+        const { schema, parentPath=''} = options;
+        let value = options.value;
+        const key = options.itemPath.split('/').pop();
+        
+        let head = '';
+        if (!value || !(schema?.$data?.path || schema?.$title || /^[a-f0-9-]{24}/.test(key))) {
+            head = `${key}: `.replace(/([A-Z]{2,})/g, " $1").replace(/([A-Z][a-z])/g, " $1");
+            head = chalk.gray(head.charAt(0).toUpperCase() + head.slice(1)).padEnd(30);    
         }
-        if (value && propertySchema.hasOwnProperty('$title')) {
-            const template = Handlebars.compile(propertySchema.$title);
-            tail = template(value).trim();
-            if (tail && tail.indexOf('/')) {
-                tail = (await Promise.all(tail.split(' ').map(async labelPart => {
+
+        let label = '';
+        if (value && schema?.$data?.path) {
+            return await this.getName({itemPath: `${parentPath}${parentPath?'/':''}${value}`, parentPath});
+        }
+        if (schema?.$title && value) {
+            const template = Handlebars.compile(schema.$title);
+            label = template(value).trim();
+            if (label && label.indexOf('/')) {
+                label = (await Promise.all(label.split(' ').map(async labelPart => {
                     if (labelPart && labelPart.indexOf('/') > 3) {
                         //console.log(labelPart)
-                        propertySchema = await this.getSchema({ itemPath: labelPart });
-                        if (propertySchema && !propertySchema.$data) {
-                            value = await this.dispatch('get', { itemPath: labelPart, schema: propertySchema }) || '';
-                            return await this.getName(value, null, propertySchema);
+                        const subRefSchema = await this.getSchema({ itemPath: `${parentPath}${parentPath?'/':''}${labelPart}`, parentPath });
+                        if (subRefSchema && !subRefSchema.$data) {
+                            return await this.getName({itemPath: `${parentPath}${parentPath?'/':''}${labelPart}`, schema: subRefSchema, parentPath});
                         }    
                     }
                     return labelPart;
                 }))).join(' ').trim();
             }
-        } else if ((propertySchema.type === 'object' || propertySchema.type === 'array') && propertySchema.title) {
-            tail = propertySchema.title;
-        } else if (propertySchema.type === 'array' && value && value.length) {
-            tail = (await Promise.all(value.map( async i => await (await this.getName(i, null, propertySchema.items)).trim() ))).join(', ');
-        } else {
-            tail = (value !== undefined && value !== null) ?
-            (propertySchema.type !== 'object' && propertySchema.type !== 'array' ? JSON.stringify(value) :  
-                (value.title || value.name || `[${propertySchema.type}]`)):
+        } else if ((schema?.type === 'object' || schema?.type === 'array') && schema?.title) {
+            label = schema.title;
+        } else if (schema?.type === 'array' && value && value.length) {
+            label = (await Promise.all(value.map( async (i, idx) => await (await this.getName({ itemPath: `${options.itemPath}${options.itemPath?'/':''}${i._id || idx}`, value: i, schema: schema.items, parentPath})).trim() ))).join(', ');
+        } 
+        if (!label) {
+            label = (value !== undefined && value !== null) ?
+            (schema?.type !== 'object' && schema?.type !== 'array' ? JSON.stringify(value) :  
+                (value.title || value.name || key || `[${schema?.type}]`)):
             '';
         }
-        if (tail && tail.length > 90) {
-            tail = `${tail.slice(0,87)}...`;
+        if (label && label.length > 90) {
+            label = `${label.slice(0,87)}...`;
         }
-        return `${head}${tail}`;
+        return `${head}${label}`;
     }
 
-    private isPrimitive(propertySchema: IProperty = {}): boolean {
-        return ((propertySchema.type !== 'object' && 
-            propertySchema.type !== 'array')) || 
-            this.isSelect(propertySchema) ||
-            this.isCheckBox(propertySchema);
+    private isPrimitive(schema: IProperty = {}): boolean {
+        return ((schema.type !== 'object' && 
+            schema.type !== 'array')) || 
+            this.isSelect(schema) ||
+            this.isCheckBox(schema);
     }
 
-    private isCheckBox(propertySchema: IProperty): boolean {
-        if (propertySchema === undefined) { return false; };
+    private isCheckBox(schema: IProperty): boolean {
+        if (schema === undefined) { return false; };
 
-        return propertySchema.type === 'array' && 
-            this.isSelect(propertySchema.items);
+        return schema.type === 'array' && 
+            this.isSelect(schema.items);
     }
 
-    private isSelect(propertySchema: IProperty): boolean {
-        if (propertySchema === undefined) { return false; };
+    private isSelect(schema: IProperty): boolean {
+        if (schema === undefined) { return false; };
 
-        return propertySchema.enum !== undefined || propertySchema.$data !== undefined;
+        return schema.enum !== undefined || schema.$data !== undefined;
     }
 
-    private async getOptions(itemPath: string, propertySchema: IProperty, propertyValue: Item): Promise<INameValueState[] | PrimitiveType[] | IProperty[]> {
-        const isCheckBox = this.isCheckBox(propertySchema);
+    private async getEnumValues(options: IDispatchOptions)
+        : Promise<{ values: any, dataSource?: AbstractDataSource, entryPointInfo?: IEntryPointInfo}> {
         
-        const property = isCheckBox? propertySchema.items : propertySchema;
+        const { itemPath, schema } = options;
+        const property: IProperty = schema.items || schema;
+        if (property.enum) {
+            return { values: property.enum};
+        }
+        if (!property?.$data?.path) {
+            return { values: [] };
+        }
+        const dataPath = absolute(property.$data.path, itemPath);
+        const { dataSource, entryPointInfo } = await this.getDataSourceInfo({ itemPath: dataPath });
+        const newPath = dataSource instanceof AbstractDispatcher && entryPointInfo?.parentPath ?
+            await dataSource.convertPathToUri(dataPath.replace(entryPointInfo.parentPath, '').replace(/^\//,'')) :
+            dataPath;
+
+        return { dataSource, entryPointInfo, values: (await dataSource.dispatch('get', { itemPath: newPath }) || []) };
+    }
+
+    private async getOptions(options: IDispatchOptions): Promise<INameValueState[] | PrimitiveType[] | IProperty[]> {
+        const { itemPath, schema } = options;
+
+        const isCheckBox = this.isCheckBox(schema);
+        
+        const property = isCheckBox? schema.items : schema;
         const $data = property?.$data || property?.items?.$data;
-        let dataPath = absolute($data?.path||'', itemPath);
+        let dataPath = await this.convertPathToUri(absolute($data?.path||'', itemPath));
         let $values = [], $schema: IProperty;
 
         if (property.enum) {
@@ -307,20 +345,16 @@ export class PromptBuilder extends Dispatcher implements IDataRenderer {
         } else if ($data?.path) {
             $schema = await this.getSchema({ itemPath: dataPath });
             $schema = $schema.items || $schema;
-            $values = await this.dispatch('get', { itemPath: dataPath, schema: $schema });
-            if (!Array.isArray($values) && $values[$data.remoteField]) {
-                throw new Error("Promptbuilder: possible not allowed many2many relation. Make sure remote is inside an array")
-            }
-        } else {
-            $values = [];
-        }
-        return property.enum || await Promise.all($values.map(async (arrayItem: any) => {
-            return { 
-                name: (getType(arrayItem) === 'Object')? await (await this.getName(arrayItem._fullPath || arrayItem, null, $schema)).trim(): arrayItem,
-                value: arrayItem._fullPath || `${dataPath}/${arrayItem._id || arrayItem}`,
-                disabled: !!property.readOnly
-            };
-        })) || [];
+            const enumValues = await this.getEnumValues(options);
+            $values = await Promise.all(enumValues.values.map(async (value: any) => {
+                return { 
+                    name: (getType(value) === 'Object')? (await this.getName({ itemPath: value._fullPath || `${dataPath}/${value._id || value}`, value: value, schema: $schema, parentPath: enumValues?.entryPointInfo?.parentPath})).trim(): value,
+                    value: value._fullPath || `${dataPath}/${value._id || value}`,
+                    disabled: !!property.readOnly
+                };
+            }));
+        } 
+        return $values || [];
     }
         
 }

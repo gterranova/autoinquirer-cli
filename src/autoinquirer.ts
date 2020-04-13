@@ -27,10 +27,10 @@ export class AutoInquirer extends EventEmitter {
             }
 
             return prompt;
-        } catch (e) {
-            if (e instanceof Error) {
+        } catch (error) {
+            if (error instanceof Error) {
                 const nextPath = state.type !== Action.PUSH? backPath(state.path): state.path;
-                this.answer = { state: { ...state, path: nextPath, errors: e.message } };                    
+                this.answer = { state: { ...state, path: nextPath, error } };                    
                 this.emit('error', this.answer.state);
                 
                 return this.next();    
@@ -62,9 +62,9 @@ export class AutoInquirer extends EventEmitter {
                 await this.dataDispatcher.dispatch(state.type, { itemPath: state.path, value});
                 this.answer = { state: { path: nextPath } };
                 this.emit(state.type, state);
-            } catch (e) {
-                if (e instanceof Error) {
-                    this.answer = { state: { ...state, errors: e.message } };                    
+            } catch (error) {
+                if (error instanceof Error) {
+                    this.answer = { state: { ...state, error } };                    
                     this.emit('error', this.answer.state);    
                 }
             }

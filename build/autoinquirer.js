@@ -27,10 +27,10 @@ class AutoInquirer extends events_1.EventEmitter {
                 }
                 return prompt;
             }
-            catch (e) {
-                if (e instanceof Error) {
+            catch (error) {
+                if (error instanceof Error) {
                     const nextPath = state.type !== "push" ? utils_1.backPath(state.path) : state.path;
-                    this.answer = { state: Object.assign(Object.assign({}, state), { path: nextPath, errors: e.message }) };
+                    this.answer = { state: Object.assign(Object.assign({}, state), { path: nextPath, error }) };
                     this.emit('error', this.answer.state);
                     return this.next();
                 }
@@ -58,9 +58,9 @@ class AutoInquirer extends events_1.EventEmitter {
                     this.answer = { state: { path: nextPath } };
                     this.emit(state.type, state);
                 }
-                catch (e) {
-                    if (e instanceof Error) {
-                        this.answer = { state: Object.assign(Object.assign({}, state), { errors: e.message }) };
+                catch (error) {
+                    if (error instanceof Error) {
+                        this.answer = { state: Object.assign(Object.assign({}, state), { error }) };
                         this.emit('error', this.answer.state);
                     }
                 }

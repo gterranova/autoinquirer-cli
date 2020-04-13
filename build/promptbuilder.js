@@ -17,9 +17,11 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const autoinquirer_1 = require("autoinquirer");
+const datasource_1 = require("autoinquirer/build/datasource");
 const utils_1 = require("./utils");
 const Handlebars = __importStar(require("handlebars"));
 const chalk = require('chalk');
+;
 const separatorChoice = { type: 'separator' };
 const defaultActions = {
     'object': ["back", "del", "exit"],
@@ -52,8 +54,8 @@ function absolute(testPath, absolutePath) {
     return p0.join('/');
 }
 exports.absolute = absolute;
-exports.lookupValues = (schemaPath = '', obj, currPath = '') => {
-    const parts = typeof schemaPath === 'string' ? schemaPath.split('/') : schemaPath;
+exports.lookupValues = (itemPath = '', obj, currPath = '') => {
+    const parts = typeof itemPath === 'string' ? itemPath.split('/') : itemPath;
     const key = parts[0];
     const converted = currPath.split('/');
     let output = {};
@@ -81,18 +83,18 @@ class PromptBuilder extends autoinquirer_1.Dispatcher {
             if (methodName === "exit") {
                 return null;
             }
-            let itemPath = (options === null || options === void 0 ? void 0 : options.itemPath) || '';
-            let propertySchema = (options === null || options === void 0 ? void 0 : options.schema) || (yield this.getSchema({ itemPath }));
-            let propertyValue = (options === null || options === void 0 ? void 0 : options.value) || (yield this.dispatch('get', Object.assign(Object.assign({}, options), { schema: propertySchema })));
-            if (this.isPrimitive(propertySchema)) {
-                return this.makePrompt(itemPath, propertySchema, propertyValue);
+            options.itemPath = yield this.convertPathToUri((options === null || options === void 0 ? void 0 : options.itemPath) || '');
+            options.schema = (options === null || options === void 0 ? void 0 : options.schema) || (yield this.getSchema(options));
+            options.value = (options === null || options === void 0 ? void 0 : options.value) || (yield this.dispatch('get', options));
+            if (this.isPrimitive(options.schema)) {
+                return this.makePrompt(options);
             }
-            return this.makeMenu(itemPath, propertySchema, propertyValue);
+            return this.makeMenu(options);
         });
     }
-    getActions(itemPath, propertySchema) {
+    getActions(itemPath, schema) {
         const actions = [];
-        const types = !Array.isArray(propertySchema.type) ? [propertySchema.type] : propertySchema.type;
+        const types = !Array.isArray(schema.type) ? [schema.type] : schema.type;
         let defaultTypeActions = [];
         types.map(type => {
             if (defaultActions[type]) {
@@ -105,45 +107,47 @@ class PromptBuilder extends autoinquirer_1.Dispatcher {
                     actions.push({ name: 'Back', value: { path: utils_1.backPath(itemPath) } });
                 }
             }
-            else if (propertySchema.readOnly !== true || name === "exit") {
+            else if (schema.readOnly !== true || name === "exit") {
                 actions.push({ name: (name.slice(0, 1).toUpperCase() + name.slice(1)), value: { path: itemPath, type: name } });
             }
         });
         return actions;
     }
-    checkAllowed(propertySchema, parentPropertyValue) {
+    checkAllowed(schema, parentvalue) {
         return __awaiter(this, void 0, void 0, function* () {
-            if (!propertySchema || !propertySchema.depends) {
+            if (!schema || !schema.depends) {
                 return true;
             }
-            return parentPropertyValue ? !!utils_1.evalExpr(propertySchema.depends, parentPropertyValue) : true;
+            return parentvalue ? !!utils_1.evalExpr(schema.depends, parentvalue) : true;
         });
     }
-    makeMenu(itemPath, propertySchema, propertyValue) {
+    makeMenu(options) {
         return __awaiter(this, void 0, void 0, function* () {
-            const baseChoices = yield this.getChoices(itemPath, propertySchema, propertyValue);
+            const { itemPath, schema, value } = options;
+            const baseChoices = yield this.getChoices(options);
             const choices = [separatorChoice, ...baseChoices, separatorChoice];
             return {
                 name: 'state',
                 type: 'list',
-                message: (yield this.getName(propertyValue, null, propertySchema)).trim(),
-                choices: [...choices, ...this.getActions(itemPath, propertySchema)],
+                message: (yield this.getName(options)).trim(),
+                choices: [...choices, ...this.getActions(itemPath, schema)],
                 pageSize: 20,
                 path: itemPath
             };
         });
     }
-    makePrompt(itemPath, propertySchema, propertyValue) {
+    makePrompt(options) {
         return __awaiter(this, void 0, void 0, function* () {
-            const defaultValue = propertyValue !== undefined ? propertyValue : (propertySchema ? propertySchema.default : undefined);
-            const isCheckbox = this.isCheckBox(propertySchema);
-            const choices = yield this.getOptions(itemPath, propertySchema, propertyValue);
+            const { itemPath, schema, value } = options;
+            const defaultValue = value !== undefined ? value : (schema ? schema.default : undefined);
+            const isCheckbox = this.isCheckBox(schema);
+            const choices = yield this.getOptions(options);
             return {
                 name: `value`,
-                message: `Enter ${propertySchema.type ? propertySchema.type.toString().toLowerCase() : 'value'}:`,
+                message: `Enter ${schema.type ? schema.type.toString().toLowerCase() : 'value'}:`,
                 default: defaultValue,
-                disabled: !!propertySchema.readOnly,
-                type: propertySchema.$widget || (propertySchema.type === 'boolean' ? 'confirm' :
+                disabled: !!schema.readOnly,
+                type: schema.$widget || (schema.type === 'boolean' ? 'confirm' :
                     (isCheckbox ? 'checkbox' :
                         (choices && choices.length ? 'list' :
                             'input'))),
@@ -152,39 +156,38 @@ class PromptBuilder extends autoinquirer_1.Dispatcher {
             };
         });
     }
-    getChoices(itemPath, propertySchema, propertyValue) {
+    getChoices(options) {
         return __awaiter(this, void 0, void 0, function* () {
-            const schemaPath = itemPath;
-            const basePath = schemaPath && schemaPath.length ? `${schemaPath}/` : '';
-            if (propertySchema) {
-                switch (propertySchema.type) {
+            const { itemPath, schema, value } = options;
+            const basePath = itemPath && itemPath.length ? `${itemPath}/` : '';
+            if (schema) {
+                switch (schema.type) {
                     case 'string':
                     case 'number':
                     case 'boolean':
                         return null;
                     case 'object':
-                        const propertyProperties = propertySchema.properties ? Object.assign({}, propertySchema.properties) : {};
-                        if (propertySchema.patternProperties && utils_1.getType(propertyValue) === 'Object') {
-                            const objProperties = Object.keys(propertySchema.properties) || [];
-                            const otherProperties = Object.keys(propertyValue).filter((p) => p[0] !== '_' && !~objProperties.indexOf(p));
+                        const propertyProperties = schema.properties ? Object.assign({}, schema.properties) : {};
+                        if (schema.patternProperties && utils_1.getType(value) === 'Object') {
+                            const objProperties = Object.keys(schema.properties) || [];
+                            const otherProperties = Object.keys(value).filter((p) => p[0] !== '_' && !~objProperties.indexOf(p));
                             for (const key of otherProperties) {
-                                const patternFound = Object.keys(propertySchema.patternProperties).find((pattern) => RegExp(pattern).test(key));
+                                const patternFound = Object.keys(schema.patternProperties).find((pattern) => RegExp(pattern).test(key));
                                 if (patternFound) {
-                                    propertyProperties[key] = propertySchema.patternProperties[patternFound];
+                                    propertyProperties[key] = schema.patternProperties[patternFound];
                                 }
                             }
                         }
                         return yield Promise.all(Object.keys(propertyProperties).map((key) => __awaiter(this, void 0, void 0, function* () {
                             const property = propertyProperties[key];
-                            let value = propertyValue && propertyValue[key];
                             if (!property) {
-                                throw new Error(`${schemaPath}/${key} not found`);
+                                throw new Error(`${itemPath}${key} not found`);
                             }
-                            return this.checkAllowed(property, propertyValue).then((allowed) => __awaiter(this, void 0, void 0, function* () {
-                                const readOnly = (!!propertySchema.readOnly || !!property.readOnly);
-                                const writeOnly = (!!propertySchema.writeOnly || !!property.writeOnly);
+                            return this.checkAllowed(property, value[key]).then((allowed) => __awaiter(this, void 0, void 0, function* () {
+                                const readOnly = (!!schema.readOnly || !!property.readOnly);
+                                const writeOnly = (!!schema.writeOnly || !!property.writeOnly);
                                 const item = {
-                                    name: yield this.getName(value, key, property),
+                                    name: (yield this.getName({ itemPath: `${basePath}${key}`, value: value[key], schema: property, parentPath: options.parentPath })),
                                     value: { path: `${basePath}${key}` },
                                     disabled: !allowed || (this.isPrimitive(property) && readOnly && !writeOnly)
                                 };
@@ -195,14 +198,14 @@ class PromptBuilder extends autoinquirer_1.Dispatcher {
                             }));
                         })));
                     case 'array':
-                        const arrayItemSchema = propertySchema.items;
-                        return yield Promise.all(Array.isArray(propertyValue) && propertyValue.map((arrayItem, idx) => __awaiter(this, void 0, void 0, function* () {
+                        const arrayItemSchema = schema.items;
+                        return yield Promise.all(Array.isArray(value) && value.map((arrayItem, idx) => __awaiter(this, void 0, void 0, function* () {
                             const myId = (arrayItem && (arrayItem.slug || arrayItem._id)) || idx;
-                            const readOnly = (!!propertySchema.readOnly || !!arrayItemSchema.readOnly);
-                            const writeOnly = (!!propertySchema.writeOnly || !!arrayItemSchema.writeOnly);
+                            const readOnly = (!!schema.readOnly || !!arrayItemSchema.readOnly);
+                            const writeOnly = (!!schema.writeOnly || !!arrayItemSchema.writeOnly);
                             const item = {
                                 disabled: this.isPrimitive(arrayItemSchema) && readOnly && !writeOnly,
-                                name: yield this.getName(arrayItem, ~[arrayItem.name, arrayItem.title].indexOf(myId) ? null : myId, arrayItemSchema),
+                                name: yield this.getName({ itemPath: `${basePath}${myId}`, value: arrayItem, schema: arrayItemSchema, parentPath: options.parentPath }),
                                 value: {
                                     path: `${basePath}${myId}`
                                 }
@@ -213,7 +216,7 @@ class PromptBuilder extends autoinquirer_1.Dispatcher {
                             return item;
                         })) || []);
                     default:
-                        return propertyValue && Object.keys(propertyValue).map((key) => {
+                        return value && Object.keys(value).map((key) => {
                             return {
                                 name: key,
                                 value: {
@@ -227,82 +230,106 @@ class PromptBuilder extends autoinquirer_1.Dispatcher {
             return [];
         });
     }
-    getName(value, propertyNameOrIndex, propertySchema) {
-        var _a;
+    getName(options) {
+        var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
-            let head = propertyNameOrIndex !== null ? `${propertyNameOrIndex}: ` : '';
-            head = head.replace(/([A-Z]{2,})/g, " $1").replace(/([A-Z][a-z])/g, " $1");
-            head = chalk.gray(head.charAt(0).toUpperCase() + head.slice(1)).padEnd(30);
-            let tail = '';
-            if (value && ((_a = propertySchema === null || propertySchema === void 0 ? void 0 : propertySchema.$data) === null || _a === void 0 ? void 0 : _a.path) && typeof propertySchema.$data.path === 'string') {
-                const refSchema = yield this.getSchema({ itemPath: value });
-                if (propertySchema === null || propertySchema === void 0 ? void 0 : propertySchema.$data) {
-                    propertySchema = refSchema;
-                    value = (yield this.dispatch('get', { itemPath: value })) || '';
-                }
+            options = options || {};
+            options.itemPath = (options === null || options === void 0 ? void 0 : options.itemPath) ? yield this.convertPathToUri(options.itemPath) : '';
+            options.schema = (options === null || options === void 0 ? void 0 : options.schema) || (yield this.getSchema(options));
+            options.value = (options === null || options === void 0 ? void 0 : options.value) || (yield this.dispatch('get', options));
+            const { schema, parentPath = '' } = options;
+            let value = options.value;
+            const key = options.itemPath.split('/').pop();
+            let head = '';
+            if (!value || !(((_a = schema === null || schema === void 0 ? void 0 : schema.$data) === null || _a === void 0 ? void 0 : _a.path) || (schema === null || schema === void 0 ? void 0 : schema.$title) || /^[a-f0-9-]{24}/.test(key))) {
+                head = `${key}: `.replace(/([A-Z]{2,})/g, " $1").replace(/([A-Z][a-z])/g, " $1");
+                head = chalk.gray(head.charAt(0).toUpperCase() + head.slice(1)).padEnd(30);
             }
-            if (value && propertySchema.hasOwnProperty('$title')) {
-                const template = Handlebars.compile(propertySchema.$title);
-                tail = template(value).trim();
-                if (tail && tail.indexOf('/')) {
-                    tail = (yield Promise.all(tail.split(' ').map((labelPart) => __awaiter(this, void 0, void 0, function* () {
+            let label = '';
+            if (value && ((_b = schema === null || schema === void 0 ? void 0 : schema.$data) === null || _b === void 0 ? void 0 : _b.path)) {
+                return yield this.getName({ itemPath: `${parentPath}${parentPath ? '/' : ''}${value}`, parentPath });
+            }
+            if ((schema === null || schema === void 0 ? void 0 : schema.$title) && value) {
+                const template = Handlebars.compile(schema.$title);
+                label = template(value).trim();
+                if (label && label.indexOf('/')) {
+                    label = (yield Promise.all(label.split(' ').map((labelPart) => __awaiter(this, void 0, void 0, function* () {
                         if (labelPart && labelPart.indexOf('/') > 3) {
-                            propertySchema = yield this.getSchema({ itemPath: labelPart });
-                            if (propertySchema && !propertySchema.$data) {
-                                value = (yield this.dispatch('get', { itemPath: labelPart, schema: propertySchema })) || '';
-                                return yield this.getName(value, null, propertySchema);
+                            const subRefSchema = yield this.getSchema({ itemPath: `${parentPath}${parentPath ? '/' : ''}${labelPart}` });
+                            if (subRefSchema && !subRefSchema.$data) {
+                                return yield this.getName({ itemPath: `${parentPath}${parentPath ? '/' : ''}${labelPart}`, schema: subRefSchema, parentPath });
                             }
                         }
                         return labelPart;
                     })))).join(' ').trim();
                 }
             }
-            else if ((propertySchema.type === 'object' || propertySchema.type === 'array') && propertySchema.title) {
-                tail = propertySchema.title;
+            else if (((schema === null || schema === void 0 ? void 0 : schema.type) === 'object' || (schema === null || schema === void 0 ? void 0 : schema.type) === 'array') && (schema === null || schema === void 0 ? void 0 : schema.title)) {
+                label = schema.title;
             }
-            else if (propertySchema.type === 'array' && value && value.length) {
-                tail = (yield Promise.all(value.map((i) => __awaiter(this, void 0, void 0, function* () { return yield (yield this.getName(i, null, propertySchema.items)).trim(); })))).join(', ');
+            else if ((schema === null || schema === void 0 ? void 0 : schema.type) === 'array' && value && value.length) {
+                label = (yield Promise.all(value.map((i, idx) => __awaiter(this, void 0, void 0, function* () { return yield (yield this.getName({ itemPath: `${options.itemPath}${options.itemPath ? '/' : ''}${i._id || idx}`, value: i, schema: schema.items, parentPath })).trim(); })))).join(', ');
             }
-            else {
-                tail = (value !== undefined && value !== null) ?
-                    (propertySchema.type !== 'object' && propertySchema.type !== 'array' ? JSON.stringify(value) :
-                        (value.title || value.name || `[${propertySchema.type}]`)) :
+            if (!label) {
+                label = (value !== undefined && value !== null) ?
+                    ((schema === null || schema === void 0 ? void 0 : schema.type) !== 'object' && (schema === null || schema === void 0 ? void 0 : schema.type) !== 'array' ? JSON.stringify(value) :
+                        (value.title || value.name || `[${schema === null || schema === void 0 ? void 0 : schema.type}]`)) :
                     '';
             }
-            if (tail && tail.length > 90) {
-                tail = `${tail.slice(0, 87)}...`;
+            if (label && label.length > 90) {
+                label = `${label.slice(0, 87)}...`;
             }
-            return `${head}${tail}`;
+            return `${head}${label}`;
         });
     }
-    isPrimitive(propertySchema = {}) {
-        return ((propertySchema.type !== 'object' &&
-            propertySchema.type !== 'array')) ||
-            this.isSelect(propertySchema) ||
-            this.isCheckBox(propertySchema);
+    isPrimitive(schema = {}) {
+        return ((schema.type !== 'object' &&
+            schema.type !== 'array')) ||
+            this.isSelect(schema) ||
+            this.isCheckBox(schema);
     }
-    isCheckBox(propertySchema) {
-        if (propertySchema === undefined) {
+    isCheckBox(schema) {
+        if (schema === undefined) {
             return false;
         }
         ;
-        return propertySchema.type === 'array' &&
-            this.isSelect(propertySchema.items);
+        return schema.type === 'array' &&
+            this.isSelect(schema.items);
     }
-    isSelect(propertySchema) {
-        if (propertySchema === undefined) {
+    isSelect(schema) {
+        if (schema === undefined) {
             return false;
         }
         ;
-        return propertySchema.enum !== undefined || propertySchema.$data !== undefined;
+        return schema.enum !== undefined || schema.$data !== undefined;
     }
-    getOptions(itemPath, propertySchema, propertyValue) {
+    getEnumValues(options) {
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
-            const isCheckBox = this.isCheckBox(propertySchema);
-            const property = isCheckBox ? propertySchema.items : propertySchema;
+            const { itemPath, schema } = options;
+            const property = schema.items || schema;
+            if (property.enum) {
+                return { values: property.enum };
+            }
+            if (!((_a = property === null || property === void 0 ? void 0 : property.$data) === null || _a === void 0 ? void 0 : _a.path)) {
+                return { values: [] };
+            }
+            const dataPath = absolute(property.$data.path, itemPath);
+            const { dataSource, entryPointInfo } = yield this.getDataSourceInfo({ itemPath: dataPath });
+            const newPath = dataSource instanceof datasource_1.AbstractDispatcher && (entryPointInfo === null || entryPointInfo === void 0 ? void 0 : entryPointInfo.parentPath) ?
+                yield dataSource.convertPathToUri(dataPath.replace(entryPointInfo.parentPath, '').replace(/^\//, '')) :
+                dataPath;
+            return { dataSource, entryPointInfo, values: ((yield dataSource.dispatch('get', { itemPath: newPath })) || []) };
+        });
+    }
+    getOptions(options) {
+        var _a;
+        return __awaiter(this, void 0, void 0, function* () {
+            const { itemPath, schema } = options;
+            const isCheckBox = this.isCheckBox(schema);
+            const property = isCheckBox ? schema.items : schema;
             const $data = (property === null || property === void 0 ? void 0 : property.$data) || ((_a = property === null || property === void 0 ? void 0 : property.items) === null || _a === void 0 ? void 0 : _a.$data);
-            let dataPath = absolute(($data === null || $data === void 0 ? void 0 : $data.path) || '', itemPath);
+            let dataPath = yield this.convertPathToUri(absolute(($data === null || $data === void 0 ? void 0 : $data.path) || '', itemPath));
             let $values = [], $schema;
             if (property.enum) {
                 $values = property.enum || [];
@@ -310,21 +337,17 @@ class PromptBuilder extends autoinquirer_1.Dispatcher {
             else if ($data === null || $data === void 0 ? void 0 : $data.path) {
                 $schema = yield this.getSchema({ itemPath: dataPath });
                 $schema = $schema.items || $schema;
-                $values = yield this.dispatch('get', { itemPath: dataPath, schema: $schema });
-                if (!Array.isArray($values) && $values[$data.remoteField]) {
-                    throw new Error("Promptbuilder: possible not allowed many2many relation. Make sure remote is inside an array");
-                }
+                const enumValues = yield this.getEnumValues(options);
+                $values = yield Promise.all(enumValues.values.map((value) => __awaiter(this, void 0, void 0, function* () {
+                    var _b;
+                    return {
+                        name: (utils_1.getType(value) === 'Object') ? (yield this.getName({ itemPath: value._fullPath || `${dataPath}/${value._id || value}`, value: value, schema: $schema, parentPath: (_b = enumValues === null || enumValues === void 0 ? void 0 : enumValues.entryPointInfo) === null || _b === void 0 ? void 0 : _b.parentPath })).trim() : value,
+                        value: value._fullPath || `${dataPath}/${value._id || value}`,
+                        disabled: !!property.readOnly
+                    };
+                })));
             }
-            else {
-                $values = [];
-            }
-            return property.enum || (yield Promise.all($values.map((arrayItem) => __awaiter(this, void 0, void 0, function* () {
-                return {
-                    name: (utils_1.getType(arrayItem) === 'Object') ? yield (yield this.getName(arrayItem._fullPath || arrayItem, null, $schema)).trim() : arrayItem,
-                    value: arrayItem._fullPath || `${dataPath}/${arrayItem._id || arrayItem}`,
-                    disabled: !!property.readOnly
-                };
-            })))) || [];
+            return $values || [];
         });
     }
 }

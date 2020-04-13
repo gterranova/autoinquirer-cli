@@ -2,42 +2,67 @@
   "other": {
     "myArray": [
       {
-        "_id": "5e8b719edd0d608d302e5315",
+        "_id": "5e8bafe5dd0d60737038938e",
         "name": "Arr1",
-        "one2oneRef": "other/myRef1/5e8b71addd0d608d30250d52",
-        "one2manyRefs": [],
-        "many2manyRefs": []
+        "one2oneRef": "other/myRef1/5e8baff9dd0d60737018bc00",
+        "one2manyRefs": [
+          "other/myRef1/5e8baff9dd0d60737018bc00",
+          "other/myRef1/5e8baffbdd0d607370126e81"
+        ],
+        "many2manyRefs": [
+          "other/myObj/5e8bb039dd0d6073707aa25c",
+          "other/myRef1/5e8baff9dd0d60737018bc00",
+          "other/myObj/5e8bb02edd0d6073701ab174"
+        ]
       },
       {
-        "_id": "5e8b71a3dd0d608d301f7929",
+        "_id": "5e8bafe6dd0d6073701f3570",
         "name": "Arr2",
-        "one2manyRefs": [],
-        "one2oneRef": "other/myRef1/5e8b71addd0d608d30250d52",
-        "many2manyRefs": []
+        "many2manyRefs": [
+          "other/myRef1/5e8baffbdd0d607370126e81",
+          "other/myObj/5e8bb039dd0d6073707aa25c",
+          "other/myRef1/5e8baff9dd0d60737018bc00"
+        ],
+        "one2oneRef": "other/myRef1/5e8baff9dd0d60737018bc00",
+        "one2manyRefs": [
+          "other/myRef1/5e8baffbdd0d607370126e81"
+        ]
       }
     ],
     "myRef1": [
       {
-        "_id": "5e8b71addd0d608d30250d52",
-        "name": "Re1",
-        "one2one": "other/myArray/5e8b719edd0d608d302e5315",
-        "one2many": ""
+        "_id": "5e8baff9dd0d60737018bc00",
+        "name": "Ref1",
+        "one2one": "other/myArray/5e8bafe6dd0d6073701f3570",
+        "one2many": "other/myArray/5e8bafe5dd0d60737038938e",
+        "many2many": [
+          "other/myArray/5e8bafe5dd0d60737038938e",
+          "other/myArray/5e8bafe6dd0d6073701f3570"
+        ]
       },
       {
-        "_id": "5e8b71b5dd0d608d303880fa",
-        "name": "Re2",
-        "one2many": "",
-        "one2one": ""
+        "_id": "5e8baffbdd0d607370126e81",
+        "name": "Ref2",
+        "one2one": "",
+        "one2many": "other/myArray/5e8bafe5dd0d60737038938e",
+        "many2many": [
+          "other/myArray/5e8bafe6dd0d6073701f3570"
+        ]
       }
     ],
     "myObj": [
       {
-        "_id": "5e8b84badd0d605c9884ed2c",
-        "many2many": []
+        "_id": "5e8bb02edd0d6073701ab174",
+        "many2many": [
+          "other/myArray/5e8bafe5dd0d60737038938e"
+        ]
       },
       {
-        "_id": "5e8b852ddd0d604e781b49fb",
-        "many2many": []
+        "_id": "5e8bb039dd0d6073707aa25c",
+        "many2many": [
+          "other/myArray/5e8bafe6dd0d6073701f3570",
+          "other/myArray/5e8bafe5dd0d60737038938e"
+        ]
       }
     ]
   }

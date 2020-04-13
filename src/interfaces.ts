@@ -4,7 +4,7 @@ import { Action } from "autoinquirer/build/interfaces";
 export interface IState {
     path: string;
     type?: Action | string;
-    errors?: string;
+    error?: Error;
 }
 
 export interface INameValueState {

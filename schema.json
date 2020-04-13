@@ -3,12 +3,12 @@
     "$schema": "http://json-schema.org/draft-06/schema#",
     "type": "object",
     "properties": {
-        "api": {
+        "duediligence": {
             "type": "object",
             "properties": {},
             "$proxy": {
                 "proxyName": "Dispatcher",
-                "initParams": ["..\\autoinquirer-composer\\examples\\schema.json", "..\\autoinquirer-composer\\examples\\data.json"]
+                "initParams": ["..\\duediligence\\schema.json", "..\\duediligence\\data.json"]
             }                  
         },
         "other": {
