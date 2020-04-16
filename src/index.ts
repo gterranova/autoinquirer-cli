@@ -11,6 +11,7 @@ const Subject = require('rxjs').Subject;
 import { AutoInquirer } from './autoinquirer';
 import { PromptBuilder } from './promptbuilder';
 import { JsonDataSource, Dispatcher } from 'autoinquirer';
+import { FileSystemDataSource } from './filesystem'
 
 
 //const DIST_FOLDER = join(process.cwd(), 'dist/apps/client');
@@ -22,6 +23,7 @@ async function main(schemaFile, dataFile) { // jshint ignore:line
     const dispatcher = new PromptBuilder(schemaFile, dataFile); // jshint ignore:line
     dispatcher.registerProxy({ name: 'Dispatcher', classRef: Dispatcher });
     dispatcher.registerProxy({ name: 'JsonDataSource', classRef: JsonDataSource });
+    dispatcher.registerProxy({ name: 'FileSystemDataSource', classRef: FileSystemDataSource });
     await dispatcher.connect();
     const autoInquirer = new AutoInquirer(dispatcher);
 
@@ -40,7 +42,7 @@ async function main(schemaFile, dataFile) { // jshint ignore:line
     autoInquirer.on('complete', () => prompts.complete() );
     inq.then( async () => {
         await dispatcher.close();
-        process.exit(0);
+        process.exit(2);
     });
     
     autoInquirer.run();
@@ -76,4 +78,5 @@ process.on('unhandledRejection', (err: Error) => {
     console.log(err.stack || err.toString());
     // dispatcher.close();
 });
-  
+
+process.on('SIGINT', () => { console.log("Bye bye!"); process.exit(2); })

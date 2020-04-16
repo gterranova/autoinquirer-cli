@@ -25,6 +25,7 @@ const Subject = require('rxjs').Subject;
 const autoinquirer_1 = require("./autoinquirer");
 const promptbuilder_1 = require("./promptbuilder");
 const autoinquirer_2 = require("autoinquirer");
+const filesystem_1 = require("./filesystem");
 const screenHeader = '\x1Bc' + chalk.blue.bold('\n  Autoinquirer v.1.0.0') + '\n\n';
 function main(schemaFile, dataFile) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -32,6 +33,7 @@ function main(schemaFile, dataFile) {
         const dispatcher = new promptbuilder_1.PromptBuilder(schemaFile, dataFile);
         dispatcher.registerProxy({ name: 'Dispatcher', classRef: autoinquirer_2.Dispatcher });
         dispatcher.registerProxy({ name: 'JsonDataSource', classRef: autoinquirer_2.JsonDataSource });
+        dispatcher.registerProxy({ name: 'FileSystemDataSource', classRef: filesystem_1.FileSystemDataSource });
         yield dispatcher.connect();
         const autoInquirer = new autoinquirer_1.AutoInquirer(dispatcher);
         const inq = inquirer.prompt(prompts);
@@ -44,7 +46,7 @@ function main(schemaFile, dataFile) {
         autoInquirer.on('complete', () => prompts.complete());
         inq.then(() => __awaiter(this, void 0, void 0, function* () {
             yield dispatcher.close();
-            process.exit(0);
+            process.exit(2);
         }));
         autoInquirer.run();
     });
@@ -73,3 +75,4 @@ else {
 process.on('unhandledRejection', (err) => {
     console.log(err.stack || err.toString());
 });
+process.on('SIGINT', () => { console.log("Bye bye!"); process.exit(2); });

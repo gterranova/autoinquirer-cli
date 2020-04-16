@@ -15,7 +15,7 @@
     "test:watch": "jest --watch",
     "webpack": "npm run build && webpack --mode production",
     "serve": "node --inspect=5858 -r ts-node/register ./src/index.ts ..\\autoinquirer-cli",
-    "start:watch": "nodemon"
+    "start:watch": "nodemon --exitcrash"
   },
   "author": "Gianpaolo Terranova <gianpaoloterranova@gmail.com>",
   "license": "MIT",
@@ -38,6 +38,8 @@
     "rxjs": "^6.5.4"
   },
   "nodemonConfig": {
+    "restartable": false,
+    "exitcrash": false,
     "ignore": [
       "**/*.test.ts",
       "**/*.spec.ts",
@@ -46,7 +48,8 @@
     ],
     "watch": [
       "src",
-      "../autoinquirer/build"
+      "../autoinquirer/build",
+      "*.json"
     ],
     "exec": "npm run serve",
     "ext": "ts"

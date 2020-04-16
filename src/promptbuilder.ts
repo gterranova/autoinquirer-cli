@@ -240,7 +240,7 @@ export class PromptBuilder extends Dispatcher implements IDataRenderer {
 
     private async getName(options: IDispatchOptions): Promise<string> {
         options = options || {};
-        options.itemPath = options?.itemPath ? await this.convertPathToUri(options.itemPath) : '';
+        options.itemPath = options?.itemPath || ''; //? await this.convertPathToUri(options.itemPath) : '';
         options.schema = options?.schema || await this.getSchema(options);
         options.value = options?.value || await this.dispatch('get', options);
 

@@ -11,6 +11,24 @@
                 "initParams": ["..\\duediligence\\schema.json", "..\\duediligence\\data.json"]
             }                  
         },
+        "filesystem": {
+            "type": "object",
+            "properties": {},
+            "$proxy": {
+                "proxyName": "FileSystemDataSource",
+                "initParams": ["."],
+                "params": { "rootDir": "." }
+            }                  
+        },
+        "parentFilesystem": {
+            "type": "object",
+            "properties": {},
+            "$proxy": {
+                "proxyName": "FileSystemDataSource",
+                "initParams": ["."],
+                "params": { "rootDir": ".." }
+            }                  
+        },
         "other": {
             "type": "object",
             "properties": {

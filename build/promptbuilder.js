@@ -86,6 +86,8 @@ class PromptBuilder extends autoinquirer_1.Dispatcher {
             options.itemPath = yield this.convertPathToUri((options === null || options === void 0 ? void 0 : options.itemPath) || '');
             options.schema = (options === null || options === void 0 ? void 0 : options.schema) || (yield this.getSchema(options));
             options.value = (options === null || options === void 0 ? void 0 : options.value) || (yield this.dispatch('get', options));
+            const { entryPointInfo } = yield this.getDataSourceInfo({ itemPath: options.itemPath });
+            options.parentPath = entryPointInfo === null || entryPointInfo === void 0 ? void 0 : entryPointInfo.parentPath;
             if (this.isPrimitive(options.schema)) {
                 return this.makePrompt(options);
             }
@@ -113,12 +115,12 @@ class PromptBuilder extends autoinquirer_1.Dispatcher {
         });
         return actions;
     }
-    checkAllowed(schema, parentvalue) {
+    checkAllowed(schema, parentValue) {
         return __awaiter(this, void 0, void 0, function* () {
             if (!schema || !schema.depends) {
                 return true;
             }
-            return parentvalue ? !!utils_1.evalExpr(schema.depends, parentvalue) : true;
+            return parentValue ? !!utils_1.evalExpr(schema.depends, parentValue) : true;
         });
     }
     makeMenu(options) {
@@ -234,7 +236,7 @@ class PromptBuilder extends autoinquirer_1.Dispatcher {
         var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
             options = options || {};
-            options.itemPath = (options === null || options === void 0 ? void 0 : options.itemPath) ? yield this.convertPathToUri(options.itemPath) : '';
+            options.itemPath = (options === null || options === void 0 ? void 0 : options.itemPath) || '';
             options.schema = (options === null || options === void 0 ? void 0 : options.schema) || (yield this.getSchema(options));
             options.value = (options === null || options === void 0 ? void 0 : options.value) || (yield this.dispatch('get', options));
             const { schema, parentPath = '' } = options;
@@ -255,7 +257,7 @@ class PromptBuilder extends autoinquirer_1.Dispatcher {
                 if (label && label.indexOf('/')) {
                     label = (yield Promise.all(label.split(' ').map((labelPart) => __awaiter(this, void 0, void 0, function* () {
                         if (labelPart && labelPart.indexOf('/') > 3) {
-                            const subRefSchema = yield this.getSchema({ itemPath: `${parentPath}${parentPath ? '/' : ''}${labelPart}` });
+                            const subRefSchema = yield this.getSchema({ itemPath: `${parentPath}${parentPath ? '/' : ''}${labelPart}`, parentPath });
                             if (subRefSchema && !subRefSchema.$data) {
                                 return yield this.getName({ itemPath: `${parentPath}${parentPath ? '/' : ''}${labelPart}`, schema: subRefSchema, parentPath });
                             }
@@ -273,7 +275,7 @@ class PromptBuilder extends autoinquirer_1.Dispatcher {
             if (!label) {
                 label = (value !== undefined && value !== null) ?
                     ((schema === null || schema === void 0 ? void 0 : schema.type) !== 'object' && (schema === null || schema === void 0 ? void 0 : schema.type) !== 'array' ? JSON.stringify(value) :
-                        (value.title || value.name || `[${schema === null || schema === void 0 ? void 0 : schema.type}]`)) :
+                        (value.title || value.name || key || `[${schema === null || schema === void 0 ? void 0 : schema.type}]`)) :
                     '';
             }
             if (label && label.length > 90) {
