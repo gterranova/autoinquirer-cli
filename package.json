@@ -35,6 +35,8 @@
     "commander": "^5.0.0",
     "handlebars": "^4.7.3",
     "inquirer": "^7.0.0",
+    "inquirer-datepicker-prompt": "^0.4.2",
+    "moment": "^2.24.0",
     "rxjs": "^6.5.4"
   },
   "nodemonConfig": {

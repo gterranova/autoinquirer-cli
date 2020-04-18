@@ -6,6 +6,7 @@ import * as fs from 'fs';
 const chalk = require('chalk');
 var program = require('commander');
 const inquirer = require('inquirer');
+const datePicker = require('inquirer-datepicker-prompt');
 
 const Subject = require('rxjs').Subject;
 import { AutoInquirer } from './autoinquirer';
@@ -28,7 +29,8 @@ async function main(schemaFile, dataFile) { // jshint ignore:line
     const autoInquirer = new AutoInquirer(dispatcher);
 
     const inq = inquirer.prompt(prompts);
-    
+    inquirer.registerPrompt('date', datePicker);
+    inquirer.registerPrompt('date-time', datePicker);
     //const bottomBar = new inquirer.ui.BottomBar();
 
     inq.ui.process.subscribe( data => { autoInquirer.onAnswer(data).then(() => autoInquirer.run()); });

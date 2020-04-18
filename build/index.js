@@ -21,6 +21,7 @@ const fs = __importStar(require("fs"));
 const chalk = require('chalk');
 var program = require('commander');
 const inquirer = require('inquirer');
+const datePicker = require('inquirer-datepicker-prompt');
 const Subject = require('rxjs').Subject;
 const autoinquirer_1 = require("./autoinquirer");
 const promptbuilder_1 = require("./promptbuilder");
@@ -37,6 +38,8 @@ function main(schemaFile, dataFile) {
         yield dispatcher.connect();
         const autoInquirer = new autoinquirer_1.AutoInquirer(dispatcher);
         const inq = inquirer.prompt(prompts);
+        inquirer.registerPrompt('date', datePicker);
+        inquirer.registerPrompt('date-time', datePicker);
         inq.ui.process.subscribe(data => { autoInquirer.onAnswer(data).then(() => autoInquirer.run()); });
         autoInquirer.on('prompt', prompt => { console.log(screenHeader); prompts.next(prompt); });
         autoInquirer.on('error', state => {

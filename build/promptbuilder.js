@@ -15,14 +15,28 @@ var __importStar = (this && this.__importStar) || function (mod) {
     result["default"] = mod;
     return result;
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const autoinquirer_1 = require("autoinquirer");
 const datasource_1 = require("autoinquirer/build/datasource");
 const utils_1 = require("./utils");
 const Handlebars = __importStar(require("handlebars"));
+const moment_1 = __importDefault(require("moment"));
 const chalk = require('chalk');
 ;
 const separatorChoice = { type: 'separator' };
+const formatDate = (value, format = "YYYY[-]MM[-]DD") => {
+    const formats = ['DD/MM/YYYY', 'YYYY-MM-DD', 'DD-MM-YYYY'];
+    const validFormat = formats.find((f) => moment_1.default(value, f).isValid());
+    return validFormat ? moment_1.default(value, validFormat).format(format) : value;
+};
+const formatDateTime = (value) => {
+    const formats = ['DD/MM/YYYY HH:mm', 'YYYY-MM-DD HH:mm', 'DD-MM-YYYY HH:mm'];
+    const validFormat = formats.find((f) => moment_1.default(value, f).isValid());
+    return validFormat ? moment_1.default(value, validFormat).toISOString() : value;
+};
 const defaultActions = {
     'object': ["back", "del", "exit"],
     'array': ["push", "back", "exit"]
@@ -141,18 +155,24 @@ class PromptBuilder extends autoinquirer_1.Dispatcher {
     makePrompt(options) {
         return __awaiter(this, void 0, void 0, function* () {
             const { itemPath, schema, value } = options;
-            const defaultValue = value !== undefined ? value : (schema ? schema.default : undefined);
+            let defaultValue = value !== undefined ? value : (schema ? schema.default : undefined);
             const isCheckbox = this.isCheckBox(schema);
             const choices = yield this.getOptions(options);
+            const format = schema.type === 'string' && schema.format;
+            if (format.startsWith('date')) {
+            }
+            const textFormat = { date: ['dd', '/', 'mm', '/', 'yyyy'], 'date-time': ['dd', '/', 'mm', '/', 'yyyy', ' ', 'HH', ':', 'MM'] };
             return {
                 name: `value`,
                 message: `Enter ${schema.type ? schema.type.toString().toLowerCase() : 'value'}:`,
                 default: defaultValue,
                 disabled: !!schema.readOnly,
-                type: schema.$widget || (schema.type === 'boolean' ? 'confirm' :
+                type: schema.$widget || format || (schema.type === 'boolean' ? 'confirm' :
                     (isCheckbox ? 'checkbox' :
                         (choices && choices.length ? 'list' :
                             'input'))),
+                format: format && textFormat[format],
+                initial: format.startsWith('date') ? new Date(format === 'date' ? formatDate(defaultValue) : formatDateTime(defaultValue)) : undefined,
                 choices,
                 path: itemPath,
             };
@@ -185,11 +205,11 @@ class PromptBuilder extends autoinquirer_1.Dispatcher {
                             if (!property) {
                                 throw new Error(`${itemPath}${key} not found`);
                             }
-                            return this.checkAllowed(property, value[key]).then((allowed) => __awaiter(this, void 0, void 0, function* () {
+                            return this.checkAllowed(property, value).then((allowed) => __awaiter(this, void 0, void 0, function* () {
                                 const readOnly = (!!schema.readOnly || !!property.readOnly);
                                 const writeOnly = (!!schema.writeOnly || !!property.writeOnly);
                                 const item = {
-                                    name: (yield this.getName({ itemPath: `${basePath}${key}`, value: value[key], schema: property, parentPath: options.parentPath })),
+                                    name: (yield this.getName({ itemPath: `${basePath}${key}`, value: value === null || value === void 0 ? void 0 : value[key], schema: property, parentPath: options.parentPath })),
                                     value: { path: `${basePath}${key}` },
                                     disabled: !allowed || (this.isPrimitive(property) && readOnly && !writeOnly)
                                 };

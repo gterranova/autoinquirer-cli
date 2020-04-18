@@ -7,6 +7,7 @@ import { Dispatcher } from 'autoinquirer';
 import { IDataRenderer, AbstractDispatcher, AbstractDataSource } from 'autoinquirer/build/datasource';
 import { backPath, evalExpr, getType } from './utils';
 import * as Handlebars from 'handlebars';
+import moment from 'moment';
 const chalk = require('chalk');
 
 // tslint:disable-next-line:no-any
@@ -19,6 +20,18 @@ interface IEntryPointInfo {
 };
 
 const separatorChoice = {type: 'separator'};
+
+const formatDate = (value?: any, format="YYYY[-]MM[-]DD") => {
+    const formats = ['DD/MM/YYYY', 'YYYY-MM-DD', 'DD-MM-YYYY'];
+    const validFormat = formats.find((f) => moment(value, f).isValid());
+    return validFormat? moment(value, validFormat).format(format): value;
+}
+
+const formatDateTime = (value?: any) => {
+    const formats = ['DD/MM/YYYY HH:mm', 'YYYY-MM-DD HH:mm', 'DD-MM-YYYY HH:mm'];
+    const validFormat = formats.find((f) => moment(value, f).isValid());
+    return validFormat? moment(value, validFormat).toISOString(): value;
+}
 
 const defaultActions: { [key: string]: string[] } = {
     'object': [Action.BACK, Action.DEL, Action.EXIT],
@@ -132,19 +145,23 @@ export class PromptBuilder extends Dispatcher implements IDataRenderer {
     
     private async makePrompt(options: IDispatchOptions): Promise<IPrompt> {        
         const { itemPath, schema, value } = options;
-        const defaultValue = value!==undefined ? value : (schema ? schema.default : undefined);
+        let defaultValue = value!==undefined ? value : (schema ? schema.default : undefined);
         const isCheckbox = this.isCheckBox(schema);
         const choices = await this.getOptions(options);
+        const format = schema.type === 'string' && schema.format;
+        const textFormat = { date: ['dd', '/', 'mm', '/', 'yyyy'], 'date-time': ['dd', '/', 'mm', '/', 'yyyy', ' ', 'HH', ':', 'MM']}
 
         return {
             name: `value`,
             message: `Enter ${schema.type ? schema.type.toString().toLowerCase(): 'value'}:`,
             default: defaultValue,
             disabled: !!schema.readOnly,
-            type: schema.$widget || (schema.type==='boolean'? 'confirm': 
+            type: schema.$widget || format || (schema.type==='boolean'? 'confirm': 
                 (isCheckbox? 'checkbox':
                     (choices && choices.length? 'list':
                         'input'))),
+            format: format && textFormat[format],
+            initial: format.startsWith('date') ? new Date(format === 'date' ? formatDate(defaultValue) : formatDateTime(defaultValue)) : undefined,
             choices,
             path: itemPath,
         };
@@ -182,11 +199,11 @@ export class PromptBuilder extends Dispatcher implements IDataRenderer {
                             throw new Error(`${itemPath}${key} not found`);
                         }
                         
-                        return this.checkAllowed(property, value[key]).then( async (allowed: boolean) => {
+                        return this.checkAllowed(property, value).then( async (allowed: boolean) => {
                             const readOnly = (!!schema.readOnly || !!property.readOnly);
                             const writeOnly = (!!schema.writeOnly || !!property.writeOnly);
                             const item: INameValueState = { 
-                                name: (await this.getName({ itemPath: `${basePath}${key}`, value: value[key], schema: property, parentPath: options.parentPath})), //+` ${basePath}${key}`, 
+                                name: (await this.getName({ itemPath: `${basePath}${key}`, value: value?.[key], schema: property, parentPath: options.parentPath})), //+` ${basePath}${key}`, 
                                 value: { path: `${basePath}${key}` },
                                 disabled: !allowed || (this.isPrimitive(property) && readOnly && !writeOnly)
                             };

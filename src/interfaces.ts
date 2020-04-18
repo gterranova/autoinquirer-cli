@@ -30,6 +30,8 @@ export interface IPrompt {
     disabled?: boolean;
     errors?: any;
     path?: string;
+    format?: string[];
+    initial?: any;
 }
 
 export interface IFeedBack {
