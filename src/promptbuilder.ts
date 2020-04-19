@@ -156,7 +156,7 @@ export class PromptBuilder extends Dispatcher implements IDataRenderer {
             message: `Enter ${schema.type ? schema.type.toString().toLowerCase(): 'value'}:`,
             default: defaultValue,
             disabled: !!schema.readOnly,
-            type: schema.$widget || format || (schema.type==='boolean'? 'confirm': 
+            type: schema?.$widget?.type || format || (schema.type==='boolean'? 'confirm': 
                 (isCheckbox? 'checkbox':
                     (choices && choices.length? 'list':
                         'input'))),
