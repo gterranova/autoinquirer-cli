@@ -1,4 +1,4 @@
-import { Action } from "autoinquirer/build/interfaces";
+import { Action, IProperty } from "autoinquirer/build/interfaces";
 
 
 export interface IState {
@@ -40,3 +40,9 @@ export interface IFeedBack {
     value?: any;
 }
 
+export interface ICacheProperty extends IProperty {
+    _expressionProperties?: {
+        expression?: any,
+        expressionValueSetter?: (value: any) => void;
+    }
+}

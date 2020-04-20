@@ -14,7 +14,7 @@
     "test-only": "jest --coverage",
     "test:watch": "jest --watch",
     "webpack": "npm run build && webpack --mode production",
-    "serve": "node --inspect=5858 -r ts-node/register ./src/index.ts ..\\autoinquirer-cli",
+    "serve": "node --inspect=55858 -r ts-node/register ./src/index.ts ..\\autoinquirer-cli",
     "start:watch": "nodemon --exitcrash"
   },
   "author": "Gianpaolo Terranova <gianpaoloterranova@gmail.com>",

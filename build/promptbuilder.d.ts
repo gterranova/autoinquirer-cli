@@ -8,7 +8,9 @@ export declare const lookupValues: (itemPath: string | string[], obj: any, currP
 export declare class PromptBuilder extends Dispatcher implements IDataRenderer {
     render(methodName: string, options?: IDispatchOptions): Promise<IPrompt>;
     private getActions;
-    private checkAllowed;
+    private setupExpressions;
+    private _evalExpression;
+    private processExpressions;
     private makeMenu;
     private makePrompt;
     private getChoices;

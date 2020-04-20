@@ -64,6 +64,8 @@
           "other/myArray/5e8bafe5dd0d60737038938e"
         ]
       }
-    ]
+    ],
+    "testCheck": true,
+    "dependantField": "enabled"
   }
 }

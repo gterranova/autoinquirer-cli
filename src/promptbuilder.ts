@@ -1,12 +1,14 @@
 // tslint:disable:no-console
 
 import { Action, IProperty, PrimitiveType, IDispatchOptions, IProxyInfo } from 'autoinquirer/build/interfaces';
-import { INameValueState, IPrompt,  } from './interfaces';
+import { INameValueState, IPrompt, ICacheProperty,  } from './interfaces';
 
 import { Dispatcher } from 'autoinquirer';
 import { IDataRenderer, AbstractDispatcher, AbstractDataSource } from 'autoinquirer/build/datasource';
-import { backPath, evalExpr, getType } from './utils';
+import { backPath, getType, evalExpressionValueSetter, evalStringExpression, defineHiddenProp, evalExpression } from './utils';
 import * as Handlebars from 'handlebars';
+import * as _ from 'lodash';
+
 import moment from 'moment';
 const chalk = require('chalk');
 
@@ -120,17 +122,65 @@ export class PromptBuilder extends Dispatcher implements IDataRenderer {
         return actions;
     } 
 
-    private async checkAllowed(schema: IProperty, parentValue: Item): Promise<boolean> {
-        if (!schema || !schema.depends) { return true; }
+    private setupExpressions(schema: ICacheProperty) {
+        // cache built expression
+        defineHiddenProp(schema, '_expressionProperties', {});
 
-        return parentValue? !!evalExpr(schema.depends, parentValue): true;
+        if (schema.$expressionProperties) {
+            for (const key in schema.$expressionProperties) {
+                const expressionProperty = schema.$expressionProperties[key],
+                    expressionValueSetter = evalExpressionValueSetter(
+                        `field.${key}`,
+                        ['expressionValue', 'model', 'field'],
+                    );
+
+                if (typeof expressionProperty === 'string' || _.isFunction(expressionProperty)) {
+                    schema._expressionProperties[key] = {
+                        expression: this._evalExpression(expressionProperty),
+                        expressionValueSetter,
+                    };
+                }
+            }
+        }
     }
 
+    private _evalExpression(expression) {
+        expression = expression || (() => false);
+        if (typeof expression === 'string') {
+            expression = evalStringExpression(expression, ['model', 'field']);
+        }
+
+        return expression;
+    }
+    
+    private processExpressions(options: IDispatchOptions): IDispatchOptions {
+        Object.keys((<ICacheProperty>options.schema)._expressionProperties || {}).forEach( (key: string) => {
+            const expression = <{expression?: any, expressionValueSetter?: (value: any) => void;
+            }>(<ICacheProperty>options.schema)._expressionProperties?.[key];
+            const model = options.value || {}, field: any = options;
+            defineHiddenProp(field, 'model', model);
+            defineHiddenProp(field, 'parent', field);
+            const expressionValue = expression.expression(model, field);
+            if (key === 'templateOptions.disabled') {
+                options.schema.readOnly = expressionValue;
+                //console.log(options)
+            } else {
+                const setter = expression.expressionValueSetter;
+                evalExpression(setter, { field }, [expressionValue, model, field]);    
+            }
+            //console.log("Set", key, "=", expressionValue)
+        });
+        return options;
+    }
+
+
     private async makeMenu(options: IDispatchOptions): Promise<IPrompt> {
+        this.setupExpressions(options.schema);
+        this.processExpressions(options);
+
         const { itemPath, schema, value } = options;
         // select item
         const baseChoices = await this.getChoices(options);
-
         const choices = [separatorChoice, ...baseChoices, separatorChoice];
                 
         return {
@@ -161,7 +211,7 @@ export class PromptBuilder extends Dispatcher implements IDataRenderer {
                     (choices && choices.length? 'list':
                         'input'))),
             format: format && textFormat[format],
-            initial: format.startsWith('date') ? new Date(format === 'date' ? formatDate(defaultValue) : formatDateTime(defaultValue)) : undefined,
+            initial: format && format.startsWith('date') ? new Date(format === 'date' ? formatDate(defaultValue) : formatDateTime(defaultValue)) : undefined,
             choices,
             path: itemPath,
         };
@@ -194,27 +244,26 @@ export class PromptBuilder extends Dispatcher implements IDataRenderer {
 
                     // tslint:disable-next-line:no-return-await
                     return await Promise.all(Object.keys(propertyProperties).map( async (key: string) => {
-                        const property: IProperty = propertyProperties[key];
+                        this.setupExpressions(propertyProperties[key]);
+                        const { schema: property, value } = this.processExpressions({ schema: propertyProperties[key], value: options.value});
+                        //const property: IProperty = propertyProperties[key];
                         if (!property) {
                             throw new Error(`${itemPath}${key} not found`);
                         }
                         
-                        return this.checkAllowed(property, value).then( async (allowed: boolean) => {
-                            const readOnly = (!!schema.readOnly || !!property.readOnly);
-                            const writeOnly = (!!schema.writeOnly || !!property.writeOnly);
-                            const item: INameValueState = { 
-                                name: (await this.getName({ itemPath: `${basePath}${key}`, value: value?.[key], schema: property, parentPath: options.parentPath})), //+` ${basePath}${key}`, 
-                                value: { path: `${basePath}${key}` },
-                                disabled: !allowed || (this.isPrimitive(property) && readOnly && !writeOnly)
-                            };
-                            if (this.isPrimitive(property) && allowed && !readOnly || writeOnly) { 
-                                // tslint:disable-next-line:no-string-literal
-                                item.value['type'] = Action.SET; 
-                            }
-                            
-                            return item;    
-                        });
-
+                        const readOnly = (!!schema.readOnly || !!property.readOnly);
+                        const writeOnly = (!!schema.writeOnly || !!property.writeOnly);
+                        const item: INameValueState = { 
+                            name: (await this.getName({ itemPath: `${basePath}${key}`, value: value?.[key], schema: property, parentPath: options.parentPath})), //+` ${basePath}${key}`, 
+                            value: { path: `${basePath}${key}` },
+                            disabled: readOnly //!allowed || (this.isPrimitive(property) && readOnly && !writeOnly)
+                        };
+                        if (this.isPrimitive(property) && !readOnly || writeOnly) { 
+                            // tslint:disable-next-line:no-string-literal
+                            item.value['type'] = Action.SET; 
+                        }
+                        
+                        return item;   
                     }));
 
                 case 'array':

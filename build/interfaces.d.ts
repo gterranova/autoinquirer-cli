@@ -1,4 +1,4 @@
-import { Action } from "autoinquirer/build/interfaces";
+import { Action, IProperty } from "autoinquirer/build/interfaces";
 export interface IState {
     path: string;
     type?: Action | string;
@@ -31,5 +31,11 @@ export interface IFeedBack {
     name: string;
     answer: any;
     value?: any;
+}
+export interface ICacheProperty extends IProperty {
+    _expressionProperties?: {
+        expression?: any;
+        expressionValueSetter?: (value: any) => void;
+    };
 }
 //# sourceMappingURL=interfaces.d.ts.map

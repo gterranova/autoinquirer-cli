@@ -4,6 +4,43 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 
+// COPIED from ngx-formly/src/core/src/lib/extensions/field-expression/utils.ts
+export function evalStringExpression(expression: string, argNames: string[]) {
+    try {
+        if (expression.indexOf('this.field') !== -1) {
+            console.warn(`NgxFormly: using 'this.field' in expressionProperties is deprecated since v5.1, use 'field' instead.`);
+        }
+
+        return Function(...argNames, `return ${expression};`) as any;
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+export function evalExpressionValueSetter(expression: string, argNames: string[]) {
+    try {
+        return Function(...argNames, `${expression} = expressionValue;`) as (value: any) => void;
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+export function evalExpression(expression: string | Function | boolean, thisArg: any, argVal: any[]): any {
+    if (expression instanceof Function) {
+        return expression.apply(thisArg, argVal);
+    } else {
+        return expression ? true : false;
+    }
+}
+
+// END ngx-formly/src/core/src/lib/extensions/field-expression/utils.ts
+// COPIED from ngx-formly/src/core/src/lib/utils.ts
+export function defineHiddenProp(field: any, prop: string, defaultValue: any) {
+    Object.defineProperty(field, prop, { enumerable: false, writable: true, configurable: true });
+    field[prop] = defaultValue;
+}
+// END ngx-formly/src/core/src/lib/utils.ts
+
 export const backPath = (itemPath: string): string => {
     if (!itemPath) { return ''; }
     const parts = itemPath.split('/');
@@ -11,19 +48,6 @@ export const backPath = (itemPath: string): string => {
     
     return parts.join('/');
 };
-
-
-export function evalExpr(expression: string, context: any): boolean {
-    try {
-        // tslint:disable-next-line:no-eval no-function-expression
-        return (function() { return eval(expression); }).bind(context).call(context);
-    } catch (e) {
-        // tslint:disable-next-line:prefer-template
-        console.warn('•Expression: {{x \'' + expression + '\'}}\n•JS-Error: ', e, '\n•Context: ', context);
-        
-        return true;
-    }    
-}
 
 // tslint:disable-next-line:no-any
 export function loadJSON(fileName: string): any {

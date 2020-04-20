@@ -32,6 +32,20 @@
         "other": {
             "type": "object",
             "properties": {
+                "testCheck": {
+                    "title": "Test",
+                    "type": "boolean",
+                    "$expressionProperties": {
+                        "model.dependantField": "model.testCheck? 'enabled': 'disabled'"
+                    }
+                },
+                "dependantField": {
+                    "title": "On/off field",
+                    "type": "string",
+                    "$expressionProperties": {
+                        "templateOptions.disabled": "model.testCheck"
+                    }        
+                },        
                 "myArray": {
                     "type": "array",
                     "items": {

@@ -23,6 +23,7 @@ const autoinquirer_1 = require("autoinquirer");
 const datasource_1 = require("autoinquirer/build/datasource");
 const utils_1 = require("./utils");
 const Handlebars = __importStar(require("handlebars"));
+const _ = __importStar(require("lodash"));
 const moment_1 = __importDefault(require("moment"));
 const chalk = require('chalk');
 ;
@@ -129,16 +130,49 @@ class PromptBuilder extends autoinquirer_1.Dispatcher {
         });
         return actions;
     }
-    checkAllowed(schema, parentValue) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (!schema || !schema.depends) {
-                return true;
+    setupExpressions(schema) {
+        utils_1.defineHiddenProp(schema, '_expressionProperties', {});
+        if (schema.$expressionProperties) {
+            for (const key in schema.$expressionProperties) {
+                const expressionProperty = schema.$expressionProperties[key], expressionValueSetter = utils_1.evalExpressionValueSetter(`field.${key}`, ['expressionValue', 'model', 'field']);
+                if (typeof expressionProperty === 'string' || _.isFunction(expressionProperty)) {
+                    schema._expressionProperties[key] = {
+                        expression: this._evalExpression(expressionProperty),
+                        expressionValueSetter,
+                    };
+                }
             }
-            return parentValue ? !!utils_1.evalExpr(schema.depends, parentValue) : true;
+        }
+    }
+    _evalExpression(expression) {
+        expression = expression || (() => false);
+        if (typeof expression === 'string') {
+            expression = utils_1.evalStringExpression(expression, ['model', 'field']);
+        }
+        return expression;
+    }
+    processExpressions(options) {
+        Object.keys(options.schema._expressionProperties || {}).forEach((key) => {
+            var _a;
+            const expression = (_a = options.schema._expressionProperties) === null || _a === void 0 ? void 0 : _a[key];
+            const model = options.value || {}, field = options;
+            utils_1.defineHiddenProp(field, 'model', model);
+            utils_1.defineHiddenProp(field, 'parent', field);
+            const expressionValue = expression.expression(model, field);
+            if (key === 'templateOptions.disabled') {
+                options.schema.readOnly = expressionValue;
+            }
+            else {
+                const setter = expression.expressionValueSetter;
+                utils_1.evalExpression(setter, { field }, [expressionValue, model, field]);
+            }
         });
+        return options;
     }
     makeMenu(options) {
         return __awaiter(this, void 0, void 0, function* () {
+            this.setupExpressions(options.schema);
+            this.processExpressions(options);
             const { itemPath, schema, value } = options;
             const baseChoices = yield this.getChoices(options);
             const choices = [separatorChoice, ...baseChoices, separatorChoice];
@@ -153,26 +187,25 @@ class PromptBuilder extends autoinquirer_1.Dispatcher {
         });
     }
     makePrompt(options) {
+        var _a;
         return __awaiter(this, void 0, void 0, function* () {
             const { itemPath, schema, value } = options;
             let defaultValue = value !== undefined ? value : (schema ? schema.default : undefined);
             const isCheckbox = this.isCheckBox(schema);
             const choices = yield this.getOptions(options);
             const format = schema.type === 'string' && schema.format;
-            if (format.startsWith('date')) {
-            }
             const textFormat = { date: ['dd', '/', 'mm', '/', 'yyyy'], 'date-time': ['dd', '/', 'mm', '/', 'yyyy', ' ', 'HH', ':', 'MM'] };
             return {
                 name: `value`,
                 message: `Enter ${schema.type ? schema.type.toString().toLowerCase() : 'value'}:`,
                 default: defaultValue,
                 disabled: !!schema.readOnly,
-                type: schema.$widget || format || (schema.type === 'boolean' ? 'confirm' :
+                type: ((_a = schema === null || schema === void 0 ? void 0 : schema.$widget) === null || _a === void 0 ? void 0 : _a.type) || format || (schema.type === 'boolean' ? 'confirm' :
                     (isCheckbox ? 'checkbox' :
                         (choices && choices.length ? 'list' :
                             'input'))),
                 format: format && textFormat[format],
-                initial: format.startsWith('date') ? new Date(format === 'date' ? formatDate(defaultValue) : formatDateTime(defaultValue)) : undefined,
+                initial: format && format.startsWith('date') ? new Date(format === 'date' ? formatDate(defaultValue) : formatDateTime(defaultValue)) : undefined,
                 choices,
                 path: itemPath,
             };
@@ -201,23 +234,22 @@ class PromptBuilder extends autoinquirer_1.Dispatcher {
                             }
                         }
                         return yield Promise.all(Object.keys(propertyProperties).map((key) => __awaiter(this, void 0, void 0, function* () {
-                            const property = propertyProperties[key];
+                            this.setupExpressions(propertyProperties[key]);
+                            const { schema: property, value } = this.processExpressions({ schema: propertyProperties[key], value: options.value });
                             if (!property) {
                                 throw new Error(`${itemPath}${key} not found`);
                             }
-                            return this.checkAllowed(property, value).then((allowed) => __awaiter(this, void 0, void 0, function* () {
-                                const readOnly = (!!schema.readOnly || !!property.readOnly);
-                                const writeOnly = (!!schema.writeOnly || !!property.writeOnly);
-                                const item = {
-                                    name: (yield this.getName({ itemPath: `${basePath}${key}`, value: value === null || value === void 0 ? void 0 : value[key], schema: property, parentPath: options.parentPath })),
-                                    value: { path: `${basePath}${key}` },
-                                    disabled: !allowed || (this.isPrimitive(property) && readOnly && !writeOnly)
-                                };
-                                if (this.isPrimitive(property) && allowed && !readOnly || writeOnly) {
-                                    item.value['type'] = "set";
-                                }
-                                return item;
-                            }));
+                            const readOnly = (!!schema.readOnly || !!property.readOnly);
+                            const writeOnly = (!!schema.writeOnly || !!property.writeOnly);
+                            const item = {
+                                name: (yield this.getName({ itemPath: `${basePath}${key}`, value: value === null || value === void 0 ? void 0 : value[key], schema: property, parentPath: options.parentPath })),
+                                value: { path: `${basePath}${key}` },
+                                disabled: readOnly
+                            };
+                            if (this.isPrimitive(property) && !readOnly || writeOnly) {
+                                item.value['type'] = "set";
+                            }
+                            return item;
                         })));
                     case 'array':
                         const arrayItemSchema = schema.items;

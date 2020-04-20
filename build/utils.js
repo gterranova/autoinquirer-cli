@@ -7,6 +7,41 @@ const crypto_1 = __importDefault(require("crypto"));
 const fs_1 = __importDefault(require("fs"));
 const os_1 = __importDefault(require("os"));
 const path_1 = __importDefault(require("path"));
+function evalStringExpression(expression, argNames) {
+    try {
+        if (expression.indexOf('this.field') !== -1) {
+            console.warn(`NgxFormly: using 'this.field' in expressionProperties is deprecated since v5.1, use 'field' instead.`);
+        }
+        return Function(...argNames, `return ${expression};`);
+    }
+    catch (error) {
+        console.error(error);
+    }
+}
+exports.evalStringExpression = evalStringExpression;
+function evalExpressionValueSetter(expression, argNames) {
+    try {
+        return Function(...argNames, `${expression} = expressionValue;`);
+    }
+    catch (error) {
+        console.error(error);
+    }
+}
+exports.evalExpressionValueSetter = evalExpressionValueSetter;
+function evalExpression(expression, thisArg, argVal) {
+    if (expression instanceof Function) {
+        return expression.apply(thisArg, argVal);
+    }
+    else {
+        return expression ? true : false;
+    }
+}
+exports.evalExpression = evalExpression;
+function defineHiddenProp(field, prop, defaultValue) {
+    Object.defineProperty(field, prop, { enumerable: false, writable: true, configurable: true });
+    field[prop] = defaultValue;
+}
+exports.defineHiddenProp = defineHiddenProp;
 exports.backPath = (itemPath) => {
     if (!itemPath) {
         return '';
@@ -15,16 +50,6 @@ exports.backPath = (itemPath) => {
     parts.pop();
     return parts.join('/');
 };
-function evalExpr(expression, context) {
-    try {
-        return (function () { return eval(expression); }).bind(context).call(context);
-    }
-    catch (e) {
-        console.warn('•Expression: {{x \'' + expression + '\'}}\n•JS-Error: ', e, '\n•Context: ', context);
-        return true;
-    }
-}
-exports.evalExpr = evalExpr;
 function loadJSON(fileName) {
     if (fileName && fs_1.default.existsSync(fileName)) {
         const buffer = fs_1.default.readFileSync(fileName);
