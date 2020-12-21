@@ -3,6 +3,14 @@
     "$schema": "http://json-schema.org/draft-06/schema#",
     "type": "object",
     "properties": {
+        "auth": {
+            "type": "object",
+            "properties": {},
+            "$proxy": {
+                "proxyName": "AuthDataSource",
+                "initParams": ["..\\autoinquirer-cli\\users.json"]
+            }                  
+        },
         "duediligence": {
             "type": "object",
             "properties": {},
@@ -28,6 +36,20 @@
                 "initParams": ["."],
                 "params": { "rootDir": ".." }
             }                  
+        },
+        "time": {
+            "type": "string",
+            "$widget": {
+                "type": "masked-input",
+                "templateOptions": {
+                    "mask": "00:m0",
+                    "pattern": "[0-9]{2}:[0-9]{2}",
+                    "description": "Format: HH:MM",
+                    "showMaskTyped": false,
+                    "placeHolderCharacter": " ",
+                    "validation": false
+                }
+            }
         },
         "other": {
             "type": "object",

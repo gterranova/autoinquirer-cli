@@ -1,0 +1,14 @@
+{
+  "users": [
+    {
+      "name": "gianpaolo",
+      "password": "$2a$05$AaayWNxIz4rbHEKFxkCxYe7Lm4qMxNFcEpPPIcfY5q8a6BW8Q1lRy",
+      "_id": "5eaf0f18dd0d60576439a307"
+    }
+  ],
+  "token": {
+    "renew": {
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI1ZWFmMGYxOGRkMGQ2MDU3NjQzOWEzMDciLCJpYXQiOjE2MDQ4NDMxMDQsImV4cCI6MTYwNDg0MzEzNH0.kkpLZ8fkpT0n0qy8pfKg4LbmlELNwByvSa6B-Uy6Q_E"
+    }
+  }
+}

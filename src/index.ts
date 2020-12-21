@@ -39,6 +39,8 @@ async function main(schemaFile, dataFile) { // jshint ignore:line
         const error = state.error; 
         //bottomBar.updateBottomBar(chalk.red(errorString));
         console.log(chalk.red(error.stack || error.toString()));
+        process.exit(2);
+
     });
     //autoInquirer.on('exit', state => console.log(state));
     autoInquirer.on('complete', () => prompts.complete() );

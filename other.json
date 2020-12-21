@@ -1,9 +1,0 @@
-{
-  "name": "fsfsdfsdfsdfsd",
-  "myArray": [
-    {
-      "_id": "5e8b4378dd0d603e483af8ba"
-    }
-  ],
-  "one2many": "other/myArray/5e8b4378dd0d603e483af8ba"
-}

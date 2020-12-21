@@ -26,10 +26,10 @@ interface IPathInfo {
   property?: string
 }
 
-export class FileSystemDataSource extends Dispatcher {
+export class FileSystemDataSource extends AbstractDataSource {
   rootDir: string;
   constructor(rootDir?: string) {
-    super(null, null);
+    super();
     this.rootDir = rootDir || '/';
   }
   public async connect() { };
@@ -41,6 +41,10 @@ export class FileSystemDataSource extends Dispatcher {
   
   getSchemaDataSource(_parentDataSource?: AbstractDataSource) {
     return { ...this, get: (options) => this.getSchema(options) };
+  }
+
+  public async isMethodAllowed(methodName: string, options?: IDispatchOptions): Promise<Boolean> {
+    return true;
   }
 
   private getPathInfo(options?: IDispatchOptions) : IPathInfo {

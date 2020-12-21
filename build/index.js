@@ -45,6 +45,7 @@ function main(schemaFile, dataFile) {
         autoInquirer.on('error', state => {
             const error = state.error;
             console.log(chalk.red(error.stack || error.toString()));
+            process.exit(2);
         });
         autoInquirer.on('complete', () => prompts.complete());
         inq.then(() => __awaiter(this, void 0, void 0, function* () {
