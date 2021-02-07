@@ -55,7 +55,7 @@ export class AutoInquirer extends EventEmitter {
         state.type = state.type || Action.GET;
 
         //console.log("ACTION:", answer);
-        if (state && state.type && state.type === Action.PUSH || state.type === Action.DEL || (state.type === Action.SET && value !== undefined)) {
+        if (state && state.type && state.type === Action.PUSH || state.type === Action.DELETE || (state.type === Action.SET && value !== undefined)) {
             const nextPath = state.type !== Action.PUSH? backPath(state.path): state.path;
             
             try {

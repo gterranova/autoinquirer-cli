@@ -36,7 +36,7 @@ const formatDateTime = (value?: any) => {
 }
 
 const defaultActions: { [key: string]: string[] } = {
-    'object': [Action.BACK, Action.DEL, Action.EXIT],
+    'object': [Action.BACK, Action.DELETE, Action.EXIT],
     'array': [Action.PUSH, Action.BACK, Action.EXIT]
 };
 

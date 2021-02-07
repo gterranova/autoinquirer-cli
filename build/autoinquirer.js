@@ -51,7 +51,7 @@ class AutoInquirer extends events_1.EventEmitter {
         return __awaiter(this, void 0, void 0, function* () {
             const { state, value } = answer;
             state.type = state.type || "get";
-            if (state && state.type && state.type === "push" || state.type === "del" || (state.type === "set" && value !== undefined)) {
+            if (state && state.type && state.type === "push" || state.type === "delete" || (state.type === "set" && value !== undefined)) {
                 const nextPath = state.type !== "push" ? utils_1.backPath(state.path) : state.path;
                 try {
                     yield this.dataDispatcher.dispatch(state.type, { itemPath: state.path, value });

@@ -39,7 +39,7 @@ const formatDateTime = (value) => {
     return validFormat ? moment_1.default(value, validFormat).toISOString() : value;
 };
 const defaultActions = {
-    'object': ["back", "del", "exit"],
+    'object': ["back", "delete", "exit"],
     'array': ["push", "back", "exit"]
 };
 function absolute(testPath, absolutePath) {
