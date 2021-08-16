@@ -3,12 +3,21 @@
     "$schema": "http://json-schema.org/draft-06/schema#",
     "type": "object",
     "properties": {
+        "myFile": {
+            "type":"file",
+            "$widget": {
+                "templateOptions": {
+                    "multiple": true
+                }
+            }
+        },        
         "auth": {
             "type": "object",
             "properties": {},
             "$proxy": {
                 "proxyName": "AuthDataSource",
-                "initParams": ["..\\autoinquirer-cli\\users.json"]
+                "initParams": ["..\\duediligence\\users.json"],
+                "singleton": false
             }                  
         },
         "duediligence": {
@@ -16,25 +25,8 @@
             "properties": {},
             "$proxy": {
                 "proxyName": "Dispatcher",
-                "initParams": ["..\\duediligence\\schema.json", "..\\duediligence\\data.json"]
-            }                  
-        },
-        "filesystem": {
-            "type": "object",
-            "properties": {},
-            "$proxy": {
-                "proxyName": "FileSystemDataSource",
-                "initParams": ["."],
-                "params": { "rootDir": "." }
-            }                  
-        },
-        "parentFilesystem": {
-            "type": "object",
-            "properties": {},
-            "$proxy": {
-                "proxyName": "FileSystemDataSource",
-                "initParams": ["."],
-                "params": { "rootDir": ".." }
+                "initParams": ["..\\duediligence\\schema.json", "..\\duediligence\\data.json"],
+                "singleton": false
             }                  
         },
         "time": {
@@ -119,7 +111,7 @@
                         }        
                     }
                 }
-            }             
+            }
         }
     }
 }

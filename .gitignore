@@ -30,4 +30,5 @@ dist/
 .DS_Store
 examples/
 server/
+_uploads/
 autoinquirer.code-workspace

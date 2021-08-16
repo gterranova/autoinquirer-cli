@@ -66,5 +66,49 @@
     "testCheck": true,
     "dependantField": "enabled"
   },
-  "time": "11:11"
+  "time": "11:11",
+  "myFile": [
+    {
+      "name": "firma.png",
+      "size": 5074,
+      "type": "image/png",
+      "lastModifiedDate": "2021-03-13T17:39:25.559Z",
+      "path": "C:\\Users\\G.TERRANOVA\\Projects\\autoinquirer-cli\\_uploads\\myFile\\firma.png"
+    },
+    {
+      "name": "Untitled Sketch 3.fzz",
+      "size": 8803,
+      "type": "application/octet-stream",
+      "lastModifiedDate": "2021-03-13T17:39:25.561Z",
+      "path": "C:\\Users\\G.TERRANOVA\\Projects\\autoinquirer-cli\\_uploads\\myFile\\Untitled Sketch 3.fzz"
+    },
+    {
+      "name": "Spese trasferta.xlsx",
+      "size": 8851,
+      "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "lastModifiedDate": "2021-03-13T17:39:25.562Z",
+      "path": "C:\\Users\\G.TERRANOVA\\Projects\\autoinquirer-cli\\_uploads\\myFile\\Spese trasferta.xlsx"
+    },
+    {
+      "name": "test.gcode",
+      "size": 8741,
+      "type": "application/octet-stream",
+      "lastModifiedDate": "2021-03-13T17:39:25.562Z",
+      "path": "C:\\Users\\G.TERRANOVA\\Projects\\autoinquirer-cli\\_uploads\\myFile\\test.gcode"
+    },
+    {
+      "name": "test.svg",
+      "size": 11359,
+      "type": "image/svg+xml",
+      "lastModifiedDate": "2021-03-13T17:39:25.563Z",
+      "path": "C:\\Users\\G.TERRANOVA\\Projects\\autoinquirer-cli\\_uploads\\myFile\\test.svg"
+    },
+    {
+      "name": "Fondi ING.xlsx",
+      "size": 9744,
+      "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "lastModifiedDate": "2021-03-13T17:39:25.563Z",
+      "path": "C:\\Users\\G.TERRANOVA\\Projects\\autoinquirer-cli\\_uploads\\myFile\\Fondi ING.xlsx"
+    }
+  ]
 }
