@@ -6,7 +6,6 @@
         "name": "Arr1",
         "one2oneRef": "other/myRef1/5e8baff9dd0d60737018bc00",
         "one2manyRefs": [
-          "other/myRef1/5e8baff9dd0d60737018bc00",
           "other/myRef1/5e8baffbdd0d607370126e81"
         ],
         "many2manyRefs": [
@@ -22,9 +21,10 @@
           "other/myObj/5e8bb039dd0d6073707aa25c",
           "other/myRef1/5e8baff9dd0d60737018bc00"
         ],
-        "one2oneRef": "other/myRef1/5e8baff9dd0d60737018bc00",
+        "one2oneRef": "",
         "one2manyRefs": [
-          "other/myRef1/5e8baffbdd0d607370126e81"
+          "other/myRef1/5e8baffbdd0d607370126e81",
+          "other/myRef1/5e8baff9dd0d60737018bc00"
         ]
       }
     ],
@@ -32,8 +32,8 @@
       {
         "_id": "5e8baff9dd0d60737018bc00",
         "name": "Ref1",
-        "one2one": "other/myArray/5e8bafe6dd0d6073701f3570",
-        "one2many": "other/myArray/5e8bafe5dd0d60737038938e",
+        "one2one": "other/myArray/5e8bafe5dd0d60737038938e",
+        "one2many": "other/myArray/5e8bafe6dd0d6073701f3570",
         "many2many": [
           "other/myArray/5e8bafe6dd0d6073701f3570"
         ]

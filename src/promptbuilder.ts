@@ -88,9 +88,11 @@ export class PromptBuilder extends Dispatcher implements IDataRenderer {
 
         options.itemPath = await this.convertPathToUri(options?.itemPath || '');
         options.schema = options?.schema || await this.getSchema(options);
-        options.value = options?.value || await this.dispatch('get', options);
-        const { entryPointInfo } = await this.getDataSourceInfo({ itemPath: options.itemPath });   
-        options.parentPath = entryPointInfo?.parentPath;
+        options.value = options?.value || await this.dispatch(Action.GET, options);
+        //const { entryPointInfo } = await this.getDataSourceInfo({ itemPath: options.itemPath });   
+        const { dataSource, entryPointOptions } = await this.getDataSourceInfo(options);
+
+        options.parentPath = entryPointOptions.parentPath;
 
         if (this.isPrimitive(options.schema)) {
             return this.makePrompt(options);
@@ -308,7 +310,7 @@ export class PromptBuilder extends Dispatcher implements IDataRenderer {
         options = options || {};
         options.itemPath = options?.itemPath || ''; //? await this.convertPathToUri(options.itemPath) : '';
         options.schema = options?.schema || await this.getSchema(options);
-        options.value = options?.value || await this.dispatch('get', options);
+        options.value = options?.value || await this.dispatch(Action.GET, options);
 
         const { schema, parentPath=''} = options;
         let value = options.value;
@@ -388,12 +390,12 @@ export class PromptBuilder extends Dispatcher implements IDataRenderer {
             return { values: [] };
         }
         const dataPath = absolute(property.$data.path, itemPath);
-        const { dataSource, entryPointInfo } = await this.getDataSourceInfo({ itemPath: dataPath });
-        const newPath = dataSource instanceof AbstractDispatcher && entryPointInfo?.parentPath ?
-            await dataSource.convertPathToUri(dataPath.replace(entryPointInfo.parentPath, '').replace(/^\//,'')) :
+        const { dataSource, entryPointOptions } = await this.getDataSourceInfo({ itemPath: dataPath });
+        const newPath = dataSource instanceof AbstractDispatcher && entryPointOptions?.parentPath ?
+            await dataSource.convertPathToUri(dataPath.replace(entryPointOptions.parentPath, '').replace(/^\//,'')) :
             dataPath;
 
-        return { dataSource, entryPointInfo, values: (await dataSource.dispatch('get', { itemPath: newPath }) || []) };
+        return { dataSource, entryPointInfo: <IEntryPointInfo>entryPointOptions, values: (await dataSource.dispatch(Action.GET, { itemPath: newPath }) || []) };
     }
 
     private async getOptions(options: IDispatchOptions): Promise<INameValueState[] | PrimitiveType[] | IProperty[]> {

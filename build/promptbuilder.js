@@ -100,9 +100,9 @@ class PromptBuilder extends autoinquirer_1.Dispatcher {
             }
             options.itemPath = yield this.convertPathToUri((options === null || options === void 0 ? void 0 : options.itemPath) || '');
             options.schema = (options === null || options === void 0 ? void 0 : options.schema) || (yield this.getSchema(options));
-            options.value = (options === null || options === void 0 ? void 0 : options.value) || (yield this.dispatch('get', options));
-            const { entryPointInfo } = yield this.getDataSourceInfo({ itemPath: options.itemPath });
-            options.parentPath = entryPointInfo === null || entryPointInfo === void 0 ? void 0 : entryPointInfo.parentPath;
+            options.value = (options === null || options === void 0 ? void 0 : options.value) || (yield this.dispatch("get", options));
+            const { dataSource, entryPointOptions } = yield this.getDataSourceInfo(options);
+            options.parentPath = entryPointOptions.parentPath;
             if (this.isPrimitive(options.schema)) {
                 return this.makePrompt(options);
             }
@@ -290,7 +290,7 @@ class PromptBuilder extends autoinquirer_1.Dispatcher {
             options = options || {};
             options.itemPath = (options === null || options === void 0 ? void 0 : options.itemPath) || '';
             options.schema = (options === null || options === void 0 ? void 0 : options.schema) || (yield this.getSchema(options));
-            options.value = (options === null || options === void 0 ? void 0 : options.value) || (yield this.dispatch('get', options));
+            options.value = (options === null || options === void 0 ? void 0 : options.value) || (yield this.dispatch("get", options));
             const { schema, parentPath = '' } = options;
             let value = options.value;
             const key = options.itemPath.split('/').pop();
@@ -369,11 +369,11 @@ class PromptBuilder extends autoinquirer_1.Dispatcher {
                 return { values: [] };
             }
             const dataPath = absolute(property.$data.path, itemPath);
-            const { dataSource, entryPointInfo } = yield this.getDataSourceInfo({ itemPath: dataPath });
-            const newPath = dataSource instanceof datasource_1.AbstractDispatcher && (entryPointInfo === null || entryPointInfo === void 0 ? void 0 : entryPointInfo.parentPath) ?
-                yield dataSource.convertPathToUri(dataPath.replace(entryPointInfo.parentPath, '').replace(/^\//, '')) :
+            const { dataSource, entryPointOptions } = yield this.getDataSourceInfo({ itemPath: dataPath });
+            const newPath = dataSource instanceof datasource_1.AbstractDispatcher && (entryPointOptions === null || entryPointOptions === void 0 ? void 0 : entryPointOptions.parentPath) ?
+                yield dataSource.convertPathToUri(dataPath.replace(entryPointOptions.parentPath, '').replace(/^\//, '')) :
                 dataPath;
-            return { dataSource, entryPointInfo, values: ((yield dataSource.dispatch('get', { itemPath: newPath })) || []) };
+            return { dataSource, entryPointInfo: entryPointOptions, values: ((yield dataSource.dispatch("get", { itemPath: newPath })) || []) };
         });
     }
     getOptions(options) {

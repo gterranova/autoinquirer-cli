@@ -25,7 +25,7 @@ async function main(schemaFile, dataFile) { // jshint ignore:line
     dispatcher.registerProxy({ name: 'Dispatcher', classRef: Dispatcher });
     dispatcher.registerProxy({ name: 'JsonDataSource', classRef: JsonDataSource });
     dispatcher.registerProxy({ name: 'FileSystemDataSource', classRef: FileSystemDataSource });
-    await dispatcher.connect();
+    await dispatcher.connect(null);
     const autoInquirer = new AutoInquirer(dispatcher);
 
     const inq = inquirer.prompt(prompts);

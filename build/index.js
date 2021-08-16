@@ -35,7 +35,7 @@ function main(schemaFile, dataFile) {
         dispatcher.registerProxy({ name: 'Dispatcher', classRef: autoinquirer_2.Dispatcher });
         dispatcher.registerProxy({ name: 'JsonDataSource', classRef: autoinquirer_2.JsonDataSource });
         dispatcher.registerProxy({ name: 'FileSystemDataSource', classRef: filesystem_1.FileSystemDataSource });
-        yield dispatcher.connect();
+        yield dispatcher.connect(null);
         const autoInquirer = new autoinquirer_1.AutoInquirer(dispatcher);
         const inq = inquirer.prompt(prompts);
         inquirer.registerPrompt('date', datePicker);
