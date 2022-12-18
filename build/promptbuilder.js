@@ -159,7 +159,7 @@ class PromptBuilder extends autoinquirer_1.Dispatcher {
             utils_1.defineHiddenProp(field, 'model', model);
             utils_1.defineHiddenProp(field, 'parent', field);
             const expressionValue = expression.expression(model, field);
-            if (key === 'templateOptions.disabled') {
+            if (key === 'props.disabled') {
                 options.schema.readOnly = expressionValue;
             }
             else {

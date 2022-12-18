@@ -32,9 +32,9 @@ function main(schemaFile, dataFile) {
     return __awaiter(this, void 0, void 0, function* () {
         const prompts = new Subject();
         const dispatcher = new promptbuilder_1.PromptBuilder(schemaFile, dataFile);
-        dispatcher.registerProxy({ name: 'Dispatcher', classRef: autoinquirer_2.Dispatcher });
-        dispatcher.registerProxy({ name: 'JsonDataSource', classRef: autoinquirer_2.JsonDataSource });
-        dispatcher.registerProxy({ name: 'FileSystemDataSource', classRef: filesystem_1.FileSystemDataSource });
+        dispatcher.registerProxy({ proxyClass: 'Dispatcher', classRef: autoinquirer_2.Dispatcher });
+        dispatcher.registerProxy({ proxyClass: 'JsonDataSource', classRef: autoinquirer_2.JsonDataSource });
+        dispatcher.registerProxy({ proxyClass: 'FileSystemDataSource', classRef: filesystem_1.FileSystemDataSource });
         yield dispatcher.connect(null);
         const autoInquirer = new autoinquirer_1.AutoInquirer(dispatcher);
         const inq = inquirer.prompt(prompts);

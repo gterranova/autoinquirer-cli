@@ -163,7 +163,7 @@ export class PromptBuilder extends Dispatcher implements IDataRenderer {
             defineHiddenProp(field, 'model', model);
             defineHiddenProp(field, 'parent', field);
             const expressionValue = expression.expression(model, field);
-            if (key === 'templateOptions.disabled') {
+            if (key === 'props.disabled') {
                 options.schema.readOnly = expressionValue;
                 //console.log(options)
             } else {

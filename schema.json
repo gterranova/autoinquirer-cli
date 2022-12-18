@@ -6,7 +6,7 @@
         "myFile": {
             "type":"file",
             "$widget": {
-                "templateOptions": {
+                "props": {
                     "multiple": true
                 }
             }
@@ -33,7 +33,7 @@
             "type": "string",
             "$widget": {
                 "type": "masked-input",
-                "templateOptions": {
+                "props": {
                     "mask": "00:m0",
                     "pattern": "[0-9]{2}:[0-9]{2}",
                     "description": "Format: HH:MM",
@@ -57,7 +57,7 @@
                     "title": "On/off field",
                     "type": "string",
                     "$expressionProperties": {
-                        "templateOptions.disabled": "model.testCheck"
+                        "props.disabled": "model.testCheck"
                     }        
                 },        
                 "myArray": {
